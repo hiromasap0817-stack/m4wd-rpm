@@ -43,12 +43,15 @@ body.peek .bg::after{opacity:0}
   background:rgba(12,14,17,.7);color:var(--fg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .peek-btn svg{width:18px;height:18px}
 body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
-.talk{position:fixed;right:16px;top:calc(26% + env(safe-area-inset-top,0px));z-index:4;width:min(calc(100vw - 72px),320px);transform:scale(.9);transform-origin:30% 0;opacity:0;pointer-events:none;
-  background:#fff;color:#1a1d22;border-radius:18px;padding:12px 16px;font-weight:700;font-size:1rem;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.35);
+.talk{position:fixed;left:16px;right:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:4;max-width:480px;margin:0 auto;
+  transform:translateY(12px);opacity:0;pointer-events:none;
+  background:rgba(12,14,17,.38);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:16px;padding:12px 16px;
+  font-weight:700;font-size:1rem;line-height:1.55;text-shadow:0 1px 4px rgba(0,0,0,.85);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
   transition:opacity .2s ease, transform .25s cubic-bezier(.3,1.6,.5,1)}
-.talk::before{content:"";position:absolute;left:44px;top:-12px;border:12px solid transparent;border-bottom-color:#fff;border-top:0}
+.talk::before{content:"";position:absolute;left:50%;top:-10px;margin-left:-10px;border:10px solid transparent;border-bottom-color:rgba(255,255,255,.35);border-top:0}
 .talk.show{opacity:1;transform:none}
-.talk b{color:#1557c9}
+.talk b{color:var(--hot)}
 .tap-hint{position:fixed;left:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:4;font-size:.78rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none}
 body.peek .tap-hint{opacity:1}
 body:not(.peek) .talk{display:none}
@@ -602,7 +605,7 @@ const LINES=[
   "パラソル持ってるから、日差しは任せて☀",
   "ギア比を変えると走りがガラッと変わるよ。"
 ];
-let lastLine=-1, talkTimer=0, voiceOn=true;
+let lastLine=-1, talkTimer=0;
 function lineNow(){
   const pool=[...LINES];
   if(hist.length){ const b=hist.reduce((a,x)=>x.rpm>a.rpm?x:a); pool.push("自己ベストは「"+b.name+"」の <b>"+fmt(b.rpm)+" rpm</b> だよ！"); }
@@ -615,26 +618,15 @@ function talk(){
   el.classList.remove("show"); void el.offsetWidth;
   el.innerHTML=html; el.classList.add("show");
   clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),4500);
-  try{
-    if(voiceOn&&"speechSynthesis" in window){
-      speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(el.textContent.replace(/rpm/g,"アールピーエム").replace(/[☀♪]/g,""));
-      u.lang="ja-JP"; u.pitch=1.4; u.rate=1.05;
-      const v=speechSynthesis.getVoices().find(v=>/ja/i.test(v.lang)&&/female|kyoko|o-ren|haruka|nanami|google/i.test(v.name))||speechSynthesis.getVoices().find(v=>/ja/i.test(v.lang));
-      if(v)u.voice=v;
-      speechSynthesis.speak(u);
-    }
-  }catch(e){}
 }
 function setPeek(on){
-  if(!on){ $("talk").classList.remove("show"); try{speechSynthesis.cancel();}catch(e){} }
+  if(!on){ $("talk").classList.remove("show"); }
   document.body.classList.toggle("peek",on);
   $("peekBtn").setAttribute("aria-pressed",on);
   $("peekTxt").textContent=on?"メーターに戻る":"お姉さんを見る";
 }
 $("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
 document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) talk(); });
-try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices(); }catch(e){}
 
 /* ---------- boot ---------- */
 idle(); renderLog(); drawGauge(); drawSpec();
