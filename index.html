@@ -34,8 +34,17 @@ html{background:var(--bg)}
 .bg img{width:100%;height:100%;object-fit:cover;object-position:52% 0;display:block}
 .bg::after{content:"";position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(12,14,17,.55) 0%,rgba(12,14,17,0) 18%,rgba(12,14,17,0) 34%,rgba(12,14,17,.55) 52%,rgba(12,14,17,.8) 100%)}
+.wrap{transition:opacity .35s ease}
+.bg::after{transition:opacity .35s ease}
+body.peek .wrap{opacity:0;pointer-events:none}
+body.peek .bg::after{opacity:0}
+.peek-btn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;align-items:center;gap:6px;
+  font:inherit;font-weight:700;font-size:.82rem;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(12,14,17,.7);color:var(--fg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.peek-btn svg{width:18px;height:18px}
+body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
 .hero-space{height:30vh;min-height:190px}
-.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 40px;display:grid;gap:16px}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 84px;display:grid;gap:16px}
 
 /* header */
 header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -147,6 +156,10 @@ details[open] summary::after{content:"−"}
 </style>
 </head><body>
 <div class="bg" aria-hidden="true"><img src="rq-full.jpg" alt=""></div>
+<button class="peek-btn" id="peekBtn" type="button" aria-pressed="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span id="peekTxt">お姉さんを見る</span>
+</button>
 <main class="wrap">
   <header>
     <div class="brand">
@@ -562,6 +575,15 @@ $("saveBtn").onclick=()=>{
   store(hist); $("name").value=""; $("saveBtn").disabled=true; renderLog();
   $("resNote").textContent="「"+name+"」を記録に保存しました。";
 };
+
+/* ---------- peek: hide the panels to see the whole illustration ---------- */
+function setPeek(on){
+  document.body.classList.toggle("peek",on);
+  $("peekBtn").setAttribute("aria-pressed",on);
+  $("peekTxt").textContent=on?"メーターに戻る":"お姉さんを見る";
+}
+$("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
+document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) setPeek(false); });
 
 /* ---------- boot ---------- */
 idle(); renderLog(); drawGauge(); drawSpec();
