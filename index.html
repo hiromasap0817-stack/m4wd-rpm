@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ミニ四駆 回転計</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="回転計">
+<meta name="theme-color" content="#101318">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column like a pit-side instrument — readout panel, measure steps, logbook */
+:root{
+  --bg:#eef0f3; --panel:#ffffff; --fg:#14181f; --muted:#5d6675; --line:#d5d9e0;
+  --accent:#e2481b; --accent-soft:#fbe3da; --grid:#e4e7ec; --ok:#1f8a5b;
+  --f-display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101318; --panel:#181c23; --fg:#e8ebf0; --muted:#97a0ae; --line:#2b313b;
+  --accent:#ff6a3d; --accent-soft:#3a2119; --grid:#232831; --ok:#4fc58e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#181c23; --fg:#e8ebf0; --muted:#97a0ae; --line:#2b313b;
+  --accent:#ff6a3d; --accent-soft:#3a2119; --grid:#232831; --ok:#4fc58e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:grid;gap:20px}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.6rem;letter-spacing:.02em;margin:0;text-wrap:balance}
+h2{font-size:1rem;margin:0 0 10px;letter-spacing:.04em}
+header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 16px}
+.readout{display:grid;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{font-size:.75rem;padding:2px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:700;letter-spacing:.04em}
+.chip.real{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.label{font-size:.72rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.rpm{font-family:var(--f-display);font-weight:700;font-size:clamp(3rem,15vw,4.6rem);line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
+.rpm small{font-size:1.1rem;color:var(--muted);font-weight:500}
+.meta{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+canvas{width:100%;height:150px;display:block}
+.cands{display:flex;gap:8px;flex-wrap:wrap}
+.cand{font:inherit;font-family:var(--f-mono);font-size:.8rem;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.cand[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.hint{font-size:.8rem;color:var(--muted);margin:0}
+.steps{margin:0 0 14px;padding-left:1.3em;display:grid;gap:4px;font-size:.92rem}
+.upload{display:flex;justify-content:center;align-items:center;gap:8px;padding:14px;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.upload:focus-within{outline:3px solid var(--fg);outline-offset:2px}
+.upload input{position:absolute;opacity:0;width:1px;height:1px}
+#status{font-size:.85rem;margin-top:8px;min-height:1.4em;color:var(--muted)}
+#status.err{color:var(--accent)}
+details{margin-top:10px;font-size:.9rem}
+summary{cursor:pointer;color:var(--muted)}
+.field{display:grid;gap:4px;margin-top:10px}
+select,input[type=text]{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+.save{display:flex;gap:8px}
+.save input{flex:1;min-width:0}
+.btn{font:inherit;font-weight:700;padding:9px 16px;border-radius:8px;border:1px solid var(--fg);background:var(--fg);color:var(--panel);cursor:pointer;white-space:nowrap}
+.btn:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.log{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:10px}
+.log li{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center}
+.log .name{min-width:0;overflow-wrap:anywhere;font-weight:500}
+.log .val{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums}
+.log .del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px}
+.log .bar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--grid);overflow:hidden}
+.log .bar i{display:block;height:100%;background:var(--accent)}
+.log .when{grid-column:1/-1;font-size:.72rem;color:var(--muted);font-family:var(--f-mono);margin-top:-2px}
+.log li.example{opacity:.6}
+.empty{font-size:.85rem;color:var(--muted);margin:10px 0 0}
+body{margin:0}
+[hidden]{display:none!important}
+.mic{font:inherit;font-weight:700;font-size:1.05rem;padding:14px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:10px}
+.mic.on{background:var(--fg);color:var(--panel)}
+.dot{width:10px;height:10px;border-radius:50%;background:currentColor}
+.mic.on .dot{animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+@media (prefers-reduced-motion:reduce){.mic.on .dot{animation:none}}
+.level{height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
+.level i{display:block;height:100%;width:0;background:var(--ok);transition:width .1s}
+.row2{display:flex;gap:8px;flex-wrap:wrap}
+.row2 .btn{flex:1}
+.btn.ghost{background:transparent;color:var(--fg)}
+</style>
+</head><body>
+
+<main class="wrap">
+  <header>
+    <h1>ミニ四駆 回転計</h1>
+    <p>マイクでモーター音を聞いて、回転数（rpm）をリアルタイムに表示します。</p>
+  </header>
+
+  <section class="panel readout" aria-live="polite">
+    <div class="top">
+      <span class="label">回転数</span>
+      <span id="source" class="chip">サンプル音</span>
+    </div>
+    <div class="rpm"><span id="rpm">--</span><small>rpm</small></div>
+    <div class="meta">ピーク <b id="freq">--</b> Hz ・ 1回転 <b id="pprv">6</b> パルス ・ 最高 <b id="maxv">--</b> rpm</div>
+    <canvas id="spec" aria-label="周波数スペクトル"></canvas>
+    <div class="level" aria-hidden="true"><i id="lvl"></i></div>
+    <button class="mic" id="micBtn" type="button"><span class="dot"></span><span id="micTxt">マイクで計測スタート</span></button>
+    <div class="row2" id="liveCtl" hidden>
+      <button class="btn ghost" id="holdBtn" type="button">一時停止</button>
+      <button class="btn ghost" id="resetMax" type="button">最高値リセット</button>
+    </div>
+    <div id="micStatus" class="hint"></div>
+    <div class="cands" id="cands"></div>
+    <p class="hint">数値がおかしいときは、別の候補をタップしてください。倍音を拾うことがあります。</p>
+  </section>
+
+  <section class="panel">
+    <h2>測り方</h2>
+    <ol class="steps">
+      <li>静かな場所で、モーターを空回しします。</li>
+      <li>「計測スタート」を押してマイクを許可し、スマホのマイク穴をモーターに近づけます。</li>
+      <li>数字が落ち着いたら「一時停止」して保存します。</li>
+    </ol>
+    <p class="hint" style="margin-bottom:10px">録音済みのファイルから測ることもできます。</p>
+    <label class="upload" for="file">録音ファイルを選ぶ
+      <input id="file" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac">
+    </label>
+    <div id="status"></div>
+    <details>
+      <summary>設定</summary>
+      <div class="field">
+        <label for="ppr">1回転あたりのパルス数</label>
+        <select id="ppr">
+          <option value="6" selected>6（3極モーター・標準）</option>
+          <option value="3">3</option>
+          <option value="2">2</option>
+          <option value="1">1（回転音そのもの）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="range">探す周波数の範囲</label>
+        <select id="range">
+          <option value="300-8000" selected>300〜8,000 Hz（約3,000〜80,000rpm）</option>
+          <option value="500-4000">500〜4,000 Hz（約5,000〜40,000rpm）</option>
+          <option value="1000-6000">1,000〜6,000 Hz（約10,000〜60,000rpm）</option>
+        </select>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2>記録</h2>
+    <div class="save">
+      <input id="name" type="text" placeholder="モーター名・電池など" maxlength="40">
+      <button class="btn" id="saveBtn" type="button" disabled>保存</button>
+    </div>
+    <ul class="log" id="log"></ul>
+    <p class="empty" id="emptyNote">まだ記録がありません。上は表示例です。録音を解析すると保存できます。</p>
+  </section>
+</main>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const KEY="m4wd-rpm-history";
+let ppr=6, fMin=300, fMax=8000;
+let cur=null; // {spec, df, peaks, sel, real}
+
+/* ---------- FFT ---------- */
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;
+    if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}}
+  for(let len=2;len<=n;len<<=1){
+    const a=-2*Math.PI/len, wr=Math.cos(a), wi=Math.sin(a);
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;
+      for(let k=0;k<len/2;k++){
+        const p=i+k,q=p+len/2;
+        const tr=re[q]*cr-im[q]*ci, ti=re[q]*ci+im[q]*cr;
+        re[q]=re[p]-tr; im[q]=im[p]-ti; re[p]+=tr; im[p]+=ti;
+        const nr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=nr;}}}
+}
+function spectrum(x,sr){
+  const N=16384, hop=N/2, win=new Float64Array(N);
+  for(let i=0;i<N;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+  const acc=new Float64Array(N/2); let cnt=0;
+  const re=new Float64Array(N), im=new Float64Array(N);
+  const frames=Math.max(1,Math.floor((x.length-N)/hop)+1);
+  for(let f=0;f<frames;f++){
+    const s=f*hop;
+    for(let i=0;i<N;i++){re[i]=(x[s+i]||0)*win[i];im[i]=0;}
+    fft(re,im);
+    for(let i=0;i<N/2;i++)acc[i]+=re[i]*re[i]+im[i]*im[i];
+    cnt++;
+  }
+  for(let i=0;i<acc.length;i++)acc[i]/=cnt;
+  return {spec:acc, df:sr/N};
+}
+function findPeaks(spec,df){
+  const db=i=>10*Math.log10(spec[i]+1e-20);
+  const a=Math.max(2,Math.floor(fMin/df)), b=Math.min(spec.length-2,Math.ceil(fMax/df));
+  const loc=[];
+  for(let i=a;i<=b;i++) if(spec[i]>spec[i-1]&&spec[i]>=spec[i+1]) loc.push(i);
+  loc.sort((p,q)=>spec[q]-spec[p]);
+  const out=[];
+  for(const i of loc){
+    const y0=db(i-1),y1=db(i),y2=db(i+1), d=(y0-2*y1+y2)?0.5*(y0-y2)/(y0-2*y1+y2):0;
+    const f=(i+d)*df;
+    if(out.every(p=>Math.abs(p.f-f)/p.f>0.06)) out.push({f,db:y1});
+    if(out.length>=3)break;
+  }
+  return out;
+}
+
+/* ---------- display ---------- */
+const fmt=n=>Math.round(n).toLocaleString("ja-JP");
+const rpmOf=f=>f*60/ppr;
+function show(){
+  if(!cur||!cur.peaks.length){$("rpm").textContent="--";$("freq").textContent="--";draw();return;}
+  const p=cur.peaks[cur.sel];
+  $("rpm").textContent=fmt(rpmOf(p.f));
+  $("freq").textContent=fmt(p.f);
+  $("pprv").textContent=ppr;
+  const src=$("source");
+  src.textContent=cur.real?"実測":"サンプル音";
+  src.className=cur.real?"chip real":"chip";
+  const c=$("cands"); c.innerHTML="";
+  cur.peaks.forEach((pk,i)=>{
+    const b=document.createElement("button");
+    b.type="button";b.className="cand";b.setAttribute("aria-pressed",i===cur.sel);
+    b.textContent=(i===0?"最大 ":"候補 ")+fmt(rpmOf(pk.f));
+    b.onclick=()=>{cur.sel=i;show();};
+    c.appendChild(b);
+  });
+  $("saveBtn").disabled=!cur.real;
+  draw();
+}
+function tok(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function draw(){
+  const cv=$("spec"), dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const g=cv.getContext("2d"); g.scale(dpr,dpr); g.clearRect(0,0,W,H);
+  const padB=18, ph=H-padB;
+  const fx=f=>(f-fMin)/(fMax-fMin)*W;
+  g.font="11px "+tok("--f-mono"); g.fillStyle=tok("--muted"); g.strokeStyle=tok("--grid"); g.lineWidth=1;
+  const step=(fMax-fMin)>5000?2000:1000;
+  for(let f=Math.ceil(fMin/step)*step;f<=fMax;f+=step){
+    const x=Math.round(fx(f))+.5; g.beginPath();g.moveTo(x,0);g.lineTo(x,ph);g.stroke();
+    const t=(f/1000)+"k"; const tw=g.measureText(t).width;
+    g.fillText(t,Math.min(Math.max(x-tw/2,0),W-tw),H-4);
+  }
+  if(!cur)return;
+  const {spec,df}=cur; const a=Math.floor(fMin/df), b=Math.ceil(fMax/df);
+  let mx=-1e9; for(let i=a;i<=b;i++)mx=Math.max(mx,10*Math.log10(spec[i]+1e-20));
+  const lo=mx-60, fy=v=>ph-Math.max(0,Math.min(1,(v-lo)/60))*(ph-6);
+  g.beginPath(); g.moveTo(0,ph);
+  for(let i=a;i<=b;i++)g.lineTo(fx(i*df),fy(10*Math.log10(spec[i]+1e-20)));
+  g.lineTo(W,ph); g.closePath();
+  g.globalAlpha=.18; g.fillStyle=tok("--fg"); g.fill(); g.globalAlpha=1;
+  g.strokeStyle=tok("--muted"); g.stroke();
+  cur.peaks.forEach((p,i)=>{
+    const x=fx(p.f), y=fy(p.db);
+    g.fillStyle=i===cur.sel?tok("--accent"):tok("--muted");
+    if(i===cur.sel){g.strokeStyle=tok("--accent");g.setLineDash([3,3]);g.beginPath();g.moveTo(x,y);g.lineTo(x,ph);g.stroke();g.setLineDash([]);}
+    g.beginPath();g.arc(x,y,i===cur.sel?5:3.5,0,7);g.fill();
+  });
+}
+
+/* ---------- analysis ---------- */
+function analyze(x,sr,real){
+  const trim=Math.floor(sr*0.3);
+  if(x.length>sr*1.5) x=x.subarray(trim,x.length-trim);
+  const {spec,df}=spectrum(x,sr);
+  cur={spec,df,peaks:findPeaks(spec,df),sel:0,real};
+  show();
+}
+function sample(){
+  const sr=44100,n=sr*2.5,x=new Float32Array(n),f=2075;
+  let ph=0;
+  for(let i=0;i<n;i++){
+    ph+=2*Math.PI*(f*(1+0.004*Math.sin(i/sr*3)))/sr;
+    x[i]=Math.sin(ph)+0.45*Math.sin(2*ph+0.7)+0.25*Math.sin(ph/6)+0.35*(Math.random()*2-1);
+  }
+  analyze(x,sr,false);
+}
+$("file").addEventListener("change",async e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const st=$("status"); st.className=""; st.textContent="解析中…";
+  try{
+    const buf=await file.arrayBuffer();
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AC();
+    const ab=await new Promise((res,rej)=>{const p=ctx.decodeAudioData(buf,res,rej);if(p&&p.then)p.then(res,rej);});
+    const n=ab.length, x=new Float32Array(n);
+    for(let c=0;c<ab.numberOfChannels;c++){const d=ab.getChannelData(c);for(let i=0;i<n;i++)x[i]+=d[i]/ab.numberOfChannels;}
+    if(ctx.close)ctx.close();
+    if(n<ab.sampleRate*0.5)throw new Error("short");
+    analyze(x,ab.sampleRate,true);
+    st.textContent=file.name+"（"+ab.duration.toFixed(1)+"秒）を解析しました。";
+  }catch(err){
+    st.className="err";
+    st.textContent=err&&err.message==="short"
+      ?"録音が短すぎます。1秒以上録音してください。"
+      :"このファイルは読み込めませんでした。m4a・mp3・wav形式の録音を選んでください。";
+  }
+  e.target.value="";
+});
+$("ppr").onchange=e=>{ppr=+e.target.value;show();renderLog();};
+$("range").onchange=e=>{[fMin,fMax]=e.target.value.split("-").map(Number);if(cur){cur.peaks=findPeaks(cur.spec,cur.df);cur.sel=0;}show();};
+
+/* ---------- history ---------- */
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function store(a){try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}}
+let hist=load();
+const examples=[{name:"例：ノーマル系",f:1280},{name:"例：チューン系",f:1640},{name:"例：ダッシュ系",f:2310}];
+function renderLog(){
+  const ul=$("log"); ul.innerHTML="";
+  const ex=!hist.length; $("emptyNote").hidden=!ex;
+  const rows=ex?examples.map(r=>({name:r.name,rpm:r.f*60/6,example:true})):hist;
+  const max=Math.max(...rows.map(r=>r.rpm));
+  rows.forEach((r,i)=>{
+    const li=document.createElement("li"); if(r.example)li.className="example";
+    const nm=document.createElement("span");nm.className="name";nm.textContent=r.name;
+    const v=document.createElement("span");v.className="val";v.textContent=fmt(r.rpm)+" rpm";
+    li.append(nm,v);
+    if(!r.example){const d=document.createElement("button");d.className="del";d.type="button";d.setAttribute("aria-label",r.name+"を削除");d.textContent="×";
+      d.onclick=()=>{hist.splice(i,1);store(hist);renderLog();};li.append(d);} else li.append(document.createElement("span"));
+    const bar=document.createElement("div");bar.className="bar";const fill=document.createElement("i");fill.style.width=(r.rpm/max*100)+"%";bar.append(fill);li.append(bar);
+    if(r.at){const w=document.createElement("div");w.className="when";w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+" ・ "+fmt(r.freq)+"Hz ÷ "+r.ppr;li.append(w);}
+    ul.append(li);
+  });
+}
+$("saveBtn").onclick=()=>{
+  if(!cur||!cur.real)return;
+  const p=cur.peaks[cur.sel];
+  const name=$("name").value.trim()||"モーター "+(hist.length+1);
+  hist.unshift({name,rpm:rpmOf(p.f),freq:p.f,ppr,at:Date.now()});
+  store(hist);$("name").value="";renderLog();
+  $("status").className="";$("status").textContent="「"+name+"」を保存しました。";
+};
+
+/* ---------- live microphone ---------- */
+let live=null, held=false, maxRpm=0;
+const micBtn=$("micBtn"), micTxt=$("micTxt"), micSt=$("micStatus");
+function updMax(){
+  if(cur&&cur.real&&cur.peaks.length&&!held){
+    const r=rpmOf(cur.peaks[cur.sel].f);
+    if(r>maxRpm)maxRpm=r;
+  }
+  $("maxv").textContent=maxRpm?fmt(maxRpm):"--";
+}
+async function startMic(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    micSt.textContent="このブラウザではマイクが使えません。https のページか、パソコンのChromeで開いてください。";return;
+  }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AC();
+    const src=ctx.createMediaStreamSource(stream);
+    const an=ctx.createAnalyser();
+    an.fftSize=16384; an.smoothingTimeConstant=0;
+    src.connect(an);
+    const n=an.frequencyBinCount;
+    live={stream,ctx,an,buf:new Float32Array(n),avg:new Float64Array(n),timer:0,first:true};
+    held=false; maxRpm=0;
+    micBtn.classList.add("on"); micTxt.textContent="計測中（タップで停止）";
+    $("liveCtl").hidden=false; $("holdBtn").textContent="一時停止";
+    micSt.textContent="モーターにマイクを近づけてください。";
+    live.timer=setInterval(tick,150);
+  }catch(err){
+    micSt.textContent=(err&&err.name==="NotAllowedError")
+      ?"マイクが許可されませんでした。ブラウザの設定でこのページのマイクを許可してください。"
+      :"マイクを開けませんでした。ほかのアプリがマイクを使っていないか確認してください。";
+  }
+}
+function stopMic(){
+  if(!live)return;
+  clearInterval(live.timer);
+  live.stream.getTracks().forEach(t=>t.stop());
+  if(live.ctx.close)live.ctx.close();
+  live=null;
+  micBtn.classList.remove("on"); micTxt.textContent="マイクで計測スタート";
+  $("liveCtl").hidden=true; $("lvl").style.width="0";
+  micSt.textContent="計測を止めました。最後の値を保存できます。";
+}
+function tick(){
+  if(!live||held)return;
+  const {an,buf,avg}=live;
+  an.getFloatFrequencyData(buf);
+  let top=-200;
+  for(let i=0;i<buf.length;i++){
+    const p=Math.pow(10,(isFinite(buf[i])?buf[i]:-200)/10);
+    avg[i]=live.first?p:avg[i]*0.6+p*0.4;
+    if(buf[i]>top)top=buf[i];
+  }
+  live.first=false;
+  $("lvl").style.width=Math.max(0,Math.min(100,(top+100)*1.4))+"%";
+  const df=live.ctx.sampleRate/an.fftSize;
+  const prevF=cur&&cur.real&&cur.peaks[cur.sel]?cur.peaks[cur.sel].f:0;
+  const peaks=findPeaks(avg,df);
+  let sel=0;
+  if(prevF&&cur.sel>0){ // keep the user's chosen candidate if it is still there
+    const k=peaks.findIndex(p=>Math.abs(p.f-prevF)/prevF<0.08); if(k>=0)sel=k;
+  }
+  cur={spec:avg,df,peaks,sel,real:true};
+  if(top<-85){micSt.textContent="音が小さいです。マイクをモーターに近づけてください。";}
+  else micSt.textContent="";
+  show(); updMax();
+}
+micBtn.onclick=()=>live?stopMic():startMic();
+$("holdBtn").onclick=()=>{held=!held;$("holdBtn").textContent=held?"再開":"一時停止";micSt.textContent=held?"表示を止めています。この値を保存できます。":"";};
+$("resetMax").onclick=()=>{maxRpm=0;updMax();};
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&live)stopMic();});
+
+/* ---------- boot ---------- */
+sample(); renderLog();
+window.addEventListener("resize",draw);
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);}catch(e){}
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
+})();
+</script>
+
+</body></html>
