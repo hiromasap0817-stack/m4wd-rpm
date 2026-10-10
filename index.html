@@ -254,7 +254,7 @@ details[open] summary::after{content:"−"}
     </div>
     <button class="album-btn" id="albumBtn" type="button" aria-label="アルバムを開く">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
-      <span id="albumCount">1/9</span><span class="dot" id="albumDot" hidden></span>
+      <span id="albumCount">1/14</span><span class="dot" id="albumDot" hidden></span>
     </button>
   </header>
   <div class="hero-space" aria-hidden="true"></div>
@@ -665,6 +665,7 @@ $("saveBtn").onclick=()=>{
   const r=lastResult;
   hist.unshift({name,rpm:r.med,max:r.max,avg:r.avg,ppr,at:Date.now()});
   store(hist); $("name").value=""; $("saveBtn").disabled=true; renderLog();
+  stats.saved=hist.length; saveStats(); const fr=checkUnlocks(); if(fr.length) setTimeout(()=>celebrate(0,fr),400);
   $("resNote").textContent="「"+name+"」を記録に保存しました。";
 };
 
@@ -760,15 +761,20 @@ const GIRLS=[
   {id:"g2",name:"腰に手をあてて",cond:"計測を1回",need:["runs",1]},
   {id:"g7",name:"空を見上げて",cond:"計測を5回",need:["runs",5]},
   {id:"g4",name:"見上げてにっこり",cond:"計測を10回",need:["runs",10]},
+  {id:"g14",name:"ナイトステージ",cond:"計測を15回",need:["runs",15]},
+  {id:"g11",name:"夕焼けのテラス",cond:"記録を5件保存",need:["saved",5]},
   {id:"g3",name:"ピットでひと休み",cond:"安定回転数 20,000rpm",need:["best",20000]},
   {id:"g6",name:"風を受けて",cond:"安定回転数 25,000rpm",need:["best",25000]},
   {id:"g8",name:"のぞきこみ",cond:"計測を25回",need:["runs",25]},
+  {id:"g10",name:"VIPラウンジで",cond:"計測を35回",need:["runs",35]},
   {id:"g5",name:"ウインク",cond:"安定回転数 30,000rpm",need:["best",30000]},
-  {id:"g9",name:"振り返り",cond:"計測を50回",need:["runs",50]}
+  {id:"g9",name:"振り返り",cond:"計測を50回",need:["runs",50]},
+  {id:"g12",name:"ナイトピット",cond:"計測を75回",need:["runs",75]},
+  {id:"g13",name:"ドレスアップ",cond:"計測を100回",need:["runs",100]}
 ];
 const SKEY="m4wd-stats";
 function loadStats(){let s={};try{s=JSON.parse(localStorage.getItem(SKEY))||{};}catch(e){}
-  s.runs=s.runs||0; s.best=Math.max(s.best||0, ...hist.map(x=>x.rpm||0)); s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1"; return s;}
+  s.runs=s.runs||0; s.best=Math.max(s.best||0, ...hist.map(x=>x.rpm||0)); s.saved=hist.length; s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1"; return s;}
 function saveStats(){try{localStorage.setItem(SKEY,JSON.stringify(stats));}catch(e){}}
 let stats=loadStats();
 const isOpen=g=>!g.need||stats[g.need[0]]>=g.need[1];
@@ -819,7 +825,7 @@ function renderAlbum(){
       const c=document.createElement("span"); c.className="cond"; c.textContent=g.cond;
       const [k,need]=g.need, have=Math.min(stats[k],need);
       const pb=document.createElement("span"); pb.className="pbar"; const f=document.createElement("i"); f.style.width=(have/need*100)+"%"; pb.append(f);
-      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=k==="runs"?have+" / "+need+" 回":fmt(stats.best)+" / "+fmt(need);
+      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=k==="runs"?have+" / "+need+" 回":k==="saved"?have+" / "+need+" 件":fmt(stats.best)+" / "+fmt(need);
       lk.append(ln,c,pb,pn); t.append(lk);
     }
     grid.append(t);
