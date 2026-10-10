@@ -184,7 +184,7 @@ details[open] summary::after{content:"−"}
 <div class="bg" aria-hidden="true"><img src="rq-full.jpg" alt=""></div>
 <button class="peek-btn" id="peekBtn" type="button" aria-pressed="false">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-  <span id="peekTxt">お姉さんを見る</span>
+  <span id="peekTxt">お姉さんと話す</span>
 </button>
 <div class="best-tag" id="bestTag" aria-hidden="true">NEW RECORD!</div>
 <div class="talk" id="talk" role="status" aria-live="polite"></div>
@@ -682,7 +682,7 @@ function setPeek(on){
   if(!on){ $("talk").classList.remove("show"); }
   document.body.classList.toggle("peek",on);
   $("peekBtn").setAttribute("aria-pressed",on);
-  $("peekTxt").textContent=on?"メーターに戻る":"お姉さんを見る";
+  $("peekTxt").textContent=on?"メーターに戻る":"お姉さんと話す";
 }
 $("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
 document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) talk(); });
