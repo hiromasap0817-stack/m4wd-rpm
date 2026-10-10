@@ -24,29 +24,32 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{background:var(--bg)}
+
 body{margin:0;color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
-  background:
-    radial-gradient(120% 60% at 50% 0%, #1a1f27 0%, transparent 60%),
-    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 6px),
-    var(--bg);
-  min-height:100vh}
+  background:transparent;min-height:100vh}
+html{background:var(--bg)}
 [hidden]{display:none!important}
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
+.bg img{width:100%;height:100%;object-fit:cover;object-position:52% 0;display:block}
+.bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(12,14,17,.55) 0%,rgba(12,14,17,0) 18%,rgba(12,14,17,0) 34%,rgba(12,14,17,.55) 52%,rgba(12,14,17,.8) 100%)}
+.hero-space{height:30vh;min-height:190px}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 40px;display:grid;gap:16px}
 
 /* header */
 header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .brand{display:grid;gap:0}
 .eyebrow{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.72rem;letter-spacing:.28em;color:var(--accent)}
-h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1.1;margin:0;letter-spacing:.04em}
+h1{font-family:var(--f-display);font-weight:400;font-size:2rem;line-height:1.1;margin:0;letter-spacing:.04em;text-shadow:0 2px 12px rgba(0,0,0,.7),0 0 2px rgba(0,0,0,.8)}
+.eyebrow{text-shadow:0 1px 6px rgba(0,0,0,.8)}
 
 .avatar{width:58px;height:58px;flex:none;border-radius:50%;overflow:hidden;position:relative;
   background:conic-gradient(from 45deg,#1f252e 25%,#171b21 0 50%,#1f252e 0 75%,#171b21 0) 0 0/14px 14px;
   border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(255,74,28,.15)}
 .avatar img{width:100%;height:100%;object-fit:cover;display:block}
 .cheer{display:flex;align-items:flex-end;gap:10px}
-.cheer img{width:112px;height:112px;flex:none;object-fit:cover;border-radius:14px;border:2px solid var(--accent);box-shadow:0 8px 20px -8px rgba(255,74,28,.6)}
+.cheer img{width:84px;height:84px;border-radius:50%!important;flex:none;object-fit:cover;border-radius:14px;border:2px solid var(--accent);box-shadow:0 8px 20px -8px rgba(255,74,28,.6)}
 .bubble{position:relative;flex:1;min-width:0;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 14px;font-weight:700;font-size:.95rem;line-height:1.5;margin:0 0 10px}
 .bubble::before{content:"";position:absolute;left:-8px;bottom:14px;border:8px solid transparent;border-right-color:var(--fg);border-left:0}
 .bubble b{color:var(--accent);font-family:var(--f-num);font-style:italic;white-space:nowrap}
@@ -54,7 +57,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1.1
 @keyframes hop{0%{transform:translateY(20px);opacity:0}60%{transform:translateY(-6px);opacity:1}100%{transform:none}}
 
 /* cockpit */
-.cockpit{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:22px;padding:14px 14px 16px;display:grid;gap:12px;overflow:hidden}
+.cockpit{position:relative;background:linear-gradient(180deg,rgba(28,33,40,.78),rgba(21,25,30,.86));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:22px;padding:14px 14px 16px;display:grid;gap:12px;overflow:hidden}
 .cockpit::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--accent) 0 30%,transparent 30% 34%,var(--accent) 34% 40%,transparent 40%)}
 .gauge-box{position:relative;width:100%;max-width:420px;margin:0 auto;aspect-ratio:1/0.86}
 #gauge{position:absolute;inset:0;width:100%;height:100%}
@@ -96,7 +99,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1.1
 .cand[aria-pressed="true"]{border-color:var(--accent);color:var(--fg);background:rgba(255,74,28,.12)}
 
 /* cards */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px}
+.card{background:rgba(21,25,30,.82);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px}
 .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.05rem;letter-spacing:.06em}
 h2 .en{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.7rem;letter-spacing:.24em;color:var(--accent);margin-right:8px;vertical-align:2px}
@@ -143,14 +146,16 @@ details[open] summary::after{content:"−"}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head><body>
+<div class="bg" aria-hidden="true"><img src="rq-full.jpg" alt=""></div>
 <main class="wrap">
   <header>
     <div class="brand">
       <span class="eyebrow">MINI 4WD MOTOR METER</span>
       <h1>モーターメーター</h1>
     </div>
-    <div class="avatar" aria-hidden="true"><img src="rq-face.jpg" alt=""></div>
+    
   </header>
+  <div class="hero-space" aria-hidden="true"></div>
 
   <section class="cockpit" aria-label="回転数メーター">
     <div class="gauge-box">
@@ -183,7 +188,7 @@ details[open] summary::after{content:"−"}
 
   <section class="card result" id="result" hidden aria-live="polite">
     <div class="card-h"><h2><span class="en">RESULT</span>計測結果</h2><span class="meta" id="resWhen"></span></div>
-    <div class="cheer"><img src="rq-card.jpg" alt="パラソルを持ったレースクイーンのお姉さん"><p class="bubble" id="cheer">おつかれさま！</p></div>
+    <div class="cheer"><img src="rq-face.jpg" alt="レースクイーンのお姉さん"><p class="bubble" id="cheer">おつかれさま！</p></div>
     <div class="stats">
       <div class="stat max"><span class="k">MAX</span><b id="resMax">--</b><small>RPM</small></div>
       <div class="stat"><span class="k">平均</span><b id="resAvg">--</b><small>RPM</small></div>
