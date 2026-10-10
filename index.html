@@ -43,6 +43,15 @@ body.peek .bg::after{opacity:0}
   background:rgba(12,14,17,.7);color:var(--fg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .peek-btn svg{width:18px;height:18px}
 body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
+.talk{position:fixed;right:16px;top:calc(26% + env(safe-area-inset-top,0px));z-index:4;width:min(calc(100vw - 72px),320px);transform:scale(.9);transform-origin:30% 0;opacity:0;pointer-events:none;
+  background:#fff;color:#1a1d22;border-radius:18px;padding:12px 16px;font-weight:700;font-size:1rem;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.35);
+  transition:opacity .2s ease, transform .25s cubic-bezier(.3,1.6,.5,1)}
+.talk::before{content:"";position:absolute;left:44px;top:-12px;border:12px solid transparent;border-bottom-color:#fff;border-top:0}
+.talk.show{opacity:1;transform:none}
+.talk b{color:#1557c9}
+.tap-hint{position:fixed;left:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:4;font-size:.78rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none}
+body.peek .tap-hint{opacity:1}
+body:not(.peek) .talk{display:none}
 .hero-space{height:30vh;min-height:190px}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 84px;display:grid;gap:16px}
 
@@ -160,6 +169,8 @@ details[open] summary::after{content:"−"}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
   <span id="peekTxt">お姉さんを見る</span>
 </button>
+<div class="talk" id="talk" role="status" aria-live="polite"></div>
+<p class="tap-hint">お姉さんをタップしてね</p>
 <main class="wrap">
   <header>
     <div class="brand">
@@ -577,13 +588,53 @@ $("saveBtn").onclick=()=>{
 };
 
 /* ---------- peek: hide the panels to see the whole illustration ---------- */
+const LINES=[
+  "今日もミニ四駆、楽しんでる？",
+  "モーターは慣らし運転すると回転が上がることがあるよ！",
+  "電池はしっかり充電してから測ってね。",
+  "がんばって！ゴールで待ってるよ♪",
+  "セッティングが決まると気持ちいいよね！",
+  "マイクをモーターに近づけるのがコツだよ。",
+  "静かな場所で測ると、数字が安定するよ。",
+  "コースアウトには気をつけてね！",
+  "ローラーは大きいほうがコーナーで速いって知ってた？",
+  "次のレース、応援してるからね！",
+  "パラソル持ってるから、日差しは任せて☀",
+  "ギア比を変えると走りがガラッと変わるよ。"
+];
+let lastLine=-1, talkTimer=0, voiceOn=true;
+function lineNow(){
+  const pool=[...LINES];
+  if(hist.length){ const b=hist.reduce((a,x)=>x.rpm>a.rpm?x:a); pool.push("自己ベストは「"+b.name+"」の <b>"+fmt(b.rpm)+" rpm</b> だよ！"); }
+  if(lastResult) pool.push("さっきの計測、安定回転数は <b>"+fmt(lastResult.med)+" rpm</b> だったね！");
+  let i; do{ i=Math.floor(Math.random()*pool.length); }while(pool.length>1&&i===lastLine);
+  lastLine=i; return pool[i];
+}
+function talk(){
+  const el=$("talk"), html=lineNow();
+  el.classList.remove("show"); void el.offsetWidth;
+  el.innerHTML=html; el.classList.add("show");
+  clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),4500);
+  try{
+    if(voiceOn&&"speechSynthesis" in window){
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(el.textContent.replace(/rpm/g,"アールピーエム").replace(/[☀♪]/g,""));
+      u.lang="ja-JP"; u.pitch=1.4; u.rate=1.05;
+      const v=speechSynthesis.getVoices().find(v=>/ja/i.test(v.lang)&&/female|kyoko|o-ren|haruka|nanami|google/i.test(v.name))||speechSynthesis.getVoices().find(v=>/ja/i.test(v.lang));
+      if(v)u.voice=v;
+      speechSynthesis.speak(u);
+    }
+  }catch(e){}
+}
 function setPeek(on){
+  if(!on){ $("talk").classList.remove("show"); try{speechSynthesis.cancel();}catch(e){} }
   document.body.classList.toggle("peek",on);
   $("peekBtn").setAttribute("aria-pressed",on);
   $("peekTxt").textContent=on?"メーターに戻る":"お姉さんを見る";
 }
 $("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
-document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) setPeek(false); });
+document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) talk(); });
+try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices(); }catch(e){}
 
 /* ---------- boot ---------- */
 idle(); renderLog(); drawGauge(); drawSpec();
