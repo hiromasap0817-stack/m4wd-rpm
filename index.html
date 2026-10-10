@@ -608,26 +608,37 @@ $("saveBtn").onclick=()=>{
 
 /* ---------- peek: hide the panels to see the whole illustration ---------- */
 const LINES=[
-  "今日もミニ四駆、楽しんでる？",
-  "モーターは慣らし運転すると回転が上がることがあるよ！",
-  "電池はしっかり充電してから測ってね。",
-  "がんばって！ゴールで待ってるよ♪",
-  "セッティングが決まると気持ちいいよね！",
-  "マイクをモーターに近づけるのがコツだよ。",
-  "静かな場所で測ると、数字が安定するよ。",
-  "コースアウトには気をつけてね！",
-  "ローラーは大きいほうがコーナーで速いって知ってた？",
-  "次のレース、応援してるからね！",
-  "パラソル持ってるから、日差しは任せて☀",
-  "ギア比を変えると走りがガラッと変わるよ。"
+  "ギヤ比は5:1が標準、4:1がハイスピード、3.5:1が超速だよ。速いモーターほど低いギヤ比を使いこなせるの。",
+  "コーナーで遅いならローラー位置を見直してみて。前後のローラーの間隔を広く取ると、安定して曲がれるよ。",
+  "ローラーにダウンスラストをつけると、マシンがフェンスに押さえつけられて飛びにくくなるよ。",
+  "逆にアッパースラストになってると、コーナーでマシンが浮いてコースアウトしやすいの。要チェック！",
+  "マスダンパーはジャンプの着地でバウンドを抑えてくれるよ。重さと位置のバランスが大事！",
+  "ブレーキスポンジは高さを0.5mm単位で調整してみて。下げすぎると全体のタイムが落ちちゃうよ。",
+  "小径タイヤは加速と低重心が得意。大径タイヤは最高速が伸びるけど、コースアウトしやすくなるよ。",
+  "公式レースのレギュレーションは、全幅105mm以内、全高70mm以内、全長165mm以内だよ。ローラーもはみ出し注意！",
+  "電池の端子やターミナルの汚れは、ロスのもと。接点をきれいにするだけで回転が上がることもあるよ。",
+  "電池は充電直後とちょっと時間が経ったあとで電圧が違うの。測るときは条件をそろえてね。",
+  "モーターは連続で回すと熱で性能が落ちるよ。計測の合間はちょっと冷ましてあげて。",
+  "新品のモーターは慣らしをすると、ブラシがなじんで回転が安定しやすいよ。",
+  "同じ種類のモーターでも個体差があるの。何個か測って、いちばん回るのを選ぶのがガチ勢流！",
+  "ギヤのかみ合わせがきついと抵抗になるよ。手で回して、引っかかりがないか確かめてね。",
+  "シャフトが曲がってると、それだけでブレて遅くなるの。転がしてまっすぐか確認してみて。",
+  "620ベアリングを軸受けに使うと、駆動の抵抗がぐっと減るよ。",
+  "グリスは塗りすぎると逆に抵抗になるよ。薄く、必要なところだけが基本！",
+  "ATバンパーみたいな可動式バンパーは、レーンチェンジやジャンプの着地でマシンをいなしてくれるよ。",
+  "提灯は、マスダンパーを可動するアームに載せて、着地の衝撃を吸収する仕組みなんだって。",
+  "FRPやカーボンのプレートで補強すると、ローラーの取り付けがしっかりして、ブレが減るよ。",
+  "タイヤの直径がそろってないと、真っ直ぐ走らないよ。左右でちゃんと測ってみて。",
+  "速さだけじゃなく、完走できることも大事！コースに合わせてセッティングを変えてね。"
 ];
-let lastLine=-1, talkTimer=0;
+let lastLine=-1, talkTimer=0, deck=[];
 function lineNow(){
   const pool=[...LINES];
   if(hist.length){ const b=hist.reduce((a,x)=>x.rpm>a.rpm?x:a); pool.push("自己ベストは「"+b.name+"」の <b>"+fmt(b.rpm)+" rpm</b> だよ！"); }
   if(lastResult) pool.push("さっきの計測、安定回転数は <b>"+fmt(lastResult.med)+" rpm</b> だったね！");
-  let i; do{ i=Math.floor(Math.random()*pool.length); }while(pool.length>1&&i===lastLine);
-  lastLine=i; return pool[i];
+  // shuffled deck so tips don't repeat until all have been heard
+  if(!deck.length){ deck=pool.map((_,i)=>i); for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];} if(deck[0]===lastLine)deck.push(deck.shift()); }
+  const i=deck.shift(); lastLine=i; return pool[Math.min(i,pool.length-1)];
 }
 function bounce(cls){
   const img=document.querySelector(".bg img");
@@ -665,7 +676,7 @@ function talk(){
   const el=$("talk"), html=lineNow();
   el.classList.remove("show"); void el.offsetWidth;
   el.innerHTML=html; el.classList.add("show");
-  clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),4500);
+  clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),Math.max(4500,el.textContent.length*120));
 }
 function setPeek(on){
   if(!on){ $("talk").classList.remove("show"); }
