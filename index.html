@@ -88,6 +88,19 @@ body{margin:0}
 .row2{display:flex;gap:8px;flex-wrap:wrap}
 .row2 .btn{flex:1}
 .btn.ghost{background:transparent;color:var(--fg)}
+.prog{display:grid;gap:4px}
+.prog .track{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
+.prog .track i{display:block;height:100%;width:0;background:var(--accent)}
+.prog .txt{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.result{display:grid;gap:12px;border-color:var(--accent)}
+.result h2{margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{display:grid;gap:2px;padding:10px;border-radius:10px;background:var(--bg)}
+.stat .label{font-size:.68rem}
+.stat b{font-family:var(--f-display);font-size:clamp(1.15rem,5.5vw,1.6rem);line-height:1.1;font-variant-numeric:tabular-nums}
+.stat.hi b{color:var(--accent)}
+.stat small{font-size:.7rem;color:var(--muted)}
+#trend{width:100%;height:160px;display:block}
 </style>
 </head><body>
 
@@ -109,14 +122,26 @@ body{margin:0}
     <div class="meta">ピーク <b id="freq">--</b> Hz ・ 1回転 <b id="pprv">6</b> パルス</div>
     <canvas id="spec" aria-label="周波数スペクトル"></canvas>
     <div class="level" aria-hidden="true"><i id="lvl"></i></div>
-    <button class="mic" id="micBtn" type="button"><span class="dot"></span><span id="micTxt">マイクで計測スタート</span></button>
-    <div class="row2" id="liveCtl" hidden>
-      <button class="btn ghost" id="holdBtn" type="button">一時停止</button>
-      <button class="btn ghost" id="resetMax" type="button">最高値リセット</button>
+    <button class="mic" id="micBtn" type="button"><span class="dot"></span><span id="micTxt">20秒計測スタート</span></button>
+    <div class="prog" id="liveCtl" hidden>
+      <div class="track"><i id="progBar"></i></div>
+      <div class="txt"><span id="progEl">0秒</span><span id="progLeft">のこり 20秒</span></div>
     </div>
     <div id="micStatus" class="hint"></div>
     <div class="cands" id="cands"></div>
     <p class="hint">数値がおかしいときは、別の候補をタップしてください。倍音を拾うことがあります。</p>
+  </section>
+
+  <section class="panel result" id="result" hidden aria-live="polite">
+    <div class="top"><h2>計測結果</h2><span class="meta" id="resWhen"></span></div>
+    <div class="stats">
+      <div class="stat hi"><span class="label">MAX</span><b id="resMax">--</b><small>rpm</small></div>
+      <div class="stat"><span class="label">平均</span><b id="resAvg">--</b><small>rpm</small></div>
+      <div class="stat"><span class="label">安定回転数</span><b id="resMed">--</b><small>rpm（中央値）</small></div>
+    </div>
+    <canvas id="trend" aria-label="回転数の変化グラフ"></canvas>
+    <p class="hint" id="resNote"></p>
+    <p class="hint">下の「記録」で名前をつけて保存できます。</p>
   </section>
 
   <section class="panel">
@@ -124,8 +149,8 @@ body{margin:0}
     <ol class="steps">
       <li>静かな場所で、モーターを空回しします。</li>
       <li>「計測スタート」を押してマイクを許可し、スマホのマイク穴をモーターに近づけます。</li>
-      <li>数字が落ち着いたら「一時停止」して保存します。</li>
-    </ol>
+      <li>設定した時間（標準20秒）がたつと自動で止まり、MAX・平均・安定回転数が出ます。</li>
+          </ol>
     <p class="hint" style="margin-bottom:10px">録音済みのファイルから測ることもできます。</p>
     <label class="upload" for="file">録音ファイルを選ぶ
       <input id="file" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac">
@@ -133,6 +158,15 @@ body{margin:0}
     <div id="status"></div>
     <details>
       <summary>設定</summary>
+      <div class="field">
+        <label for="dur">計測時間</label>
+        <select id="dur">
+          <option value="10">10秒</option>
+          <option value="20" selected>20秒</option>
+          <option value="30">30秒</option>
+          <option value="60">60秒</option>
+        </select>
+      </div>
       <div class="field">
         <label for="ppr">1回転あたりのパルス数</label>
         <select id="ppr">
@@ -314,6 +348,7 @@ $("file").addEventListener("change",async e=>{
     for(let c=0;c<ab.numberOfChannels;c++){const d=ab.getChannelData(c);for(let i=0;i<n;i++)x[i]+=d[i]/ab.numberOfChannels;}
     if(ctx.close)ctx.close();
     if(n<ab.sampleRate*0.5)throw new Error("short");
+    lastResult=null; $("result").hidden=true;
     analyze(x,ab.sampleRate,true);
     st.textContent=file.name+"（"+ab.duration.toFixed(1)+"秒）を解析しました。";
   }catch(err){
@@ -345,30 +380,40 @@ function renderLog(){
     if(!r.example){const d=document.createElement("button");d.className="del";d.type="button";d.setAttribute("aria-label",r.name+"を削除");d.textContent="×";
       d.onclick=()=>{hist.splice(i,1);store(hist);renderLog();};li.append(d);} else li.append(document.createElement("span"));
     const bar=document.createElement("div");bar.className="bar";const fill=document.createElement("i");fill.style.width=(r.rpm/max*100)+"%";bar.append(fill);li.append(bar);
-    if(r.at){const w=document.createElement("div");w.className="when";w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+(r.max?" ・ MAX "+fmt(r.max)+" rpm":"")+" ・ "+fmt(r.freq)+"Hz ÷ "+r.ppr;li.append(w);}
+    if(r.at){const w=document.createElement("div");w.className="when";w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+(r.max?" ・ MAX "+fmt(r.max):"")+(r.avg?" ・ 平均 "+fmt(r.avg):"")+" ・ "+fmt(r.freq)+"Hz ÷ "+r.ppr;li.append(w);}
     ul.append(li);
   });
 }
 $("saveBtn").onclick=()=>{
-  if(!cur||!cur.real)return;
-  const p=cur.peaks[cur.sel];
   const name=$("name").value.trim()||"モーター "+(hist.length+1);
-  hist.unshift({name,rpm:rpmOf(p.f),max:maxRpm||0,freq:p.f,ppr,at:Date.now()});
+  if(lastResult){
+    const r=lastResult;
+    hist.unshift({name,rpm:r.med,max:r.max,avg:r.avg,freq:r.med*ppr/60,ppr,at:Date.now()});
+  }else{
+    if(!cur||!cur.real||!cur.peaks.length)return;
+    const p=cur.peaks[cur.sel];
+    hist.unshift({name,rpm:rpmOf(p.f),max:0,freq:p.f,ppr,at:Date.now()});
+  }
   store(hist);$("name").value="";renderLog();
   $("status").className="";$("status").textContent="「"+name+"」を保存しました。";
 };
 
 /* ---------- live microphone ---------- */
-let live=null, held=false, maxRpm=0;
+let live=null, maxRpm=0, lastResult=null, run=null;
 const micBtn=$("micBtn"), micTxt=$("micTxt"), micSt=$("micStatus");
-let lastR=0, streak=0;
-function updMax(){
-  if(cur&&cur.real&&cur.peaks.length&&!held){
+let dur=20, lastR=0, streak=0;
+const idleLabel=()=>dur+"秒計測スタート";
+$("dur").onchange=e=>{dur=+e.target.value; if(!live)micTxt.textContent=idleLabel();};
+function updMax(t){
+  if(cur&&cur.real&&cur.peaks.length){
     const r=rpmOf(cur.peaks[cur.sel].f);
     streak=(lastR&&Math.abs(r-lastR)/lastR<0.03)?streak+1:1;
     lastR=r;
-    if(streak>=3&&r>maxRpm)maxRpm=r; // ignore one-off spikes
-  }else if(!held){lastR=0;streak=0;}
+    if(streak>=3){ // ignore one-off spikes
+      if(r>maxRpm)maxRpm=r;
+      if(run)run.samples.push({t,r});
+    }
+  }else{lastR=0;streak=0;}
   $("maxv").textContent=maxRpm?fmt(maxRpm):"--";
 }
 async function startMic(){
@@ -385,9 +430,10 @@ async function startMic(){
     src.connect(an);
     const n=an.frequencyBinCount;
     live={stream,ctx,an,buf:new Float32Array(n),avg:new Float64Array(n),timer:0,first:true};
-    held=false; maxRpm=0;
-    micBtn.classList.add("on"); micTxt.textContent="計測中（タップで停止）";
-    $("liveCtl").hidden=false; $("holdBtn").textContent="一時停止";
+    maxRpm=0; lastR=0; streak=0; lastResult=null;
+    run={t0:performance.now(),dur,samples:[]};
+    micBtn.classList.add("on"); micTxt.textContent="計測中（タップで終了）";
+    $("liveCtl").hidden=false; $("result").hidden=true;
     micSt.textContent="モーターにマイクを近づけてください。";
     live.timer=setInterval(tick,150);
   }catch(err){
@@ -402,12 +448,70 @@ function stopMic(){
   live.stream.getTracks().forEach(t=>t.stop());
   if(live.ctx.close)live.ctx.close();
   live=null;
-  micBtn.classList.remove("on"); micTxt.textContent="マイクで計測スタート";
+  micBtn.classList.remove("on"); micTxt.textContent=idleLabel();
   $("liveCtl").hidden=true; $("lvl").style.width="0";
-  micSt.textContent="計測を止めました。最後の値を保存できます。";
+}
+function finish(){
+  const r=run; run=null; stopMic();
+  if(!r)return;
+  const el=Math.min(r.dur,(performance.now()-r.t0)/1000);
+  const xs=r.samples.map(s=>s.r);
+  const box=$("result"); box.hidden=false;
+  $("resWhen").textContent=new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+" ・ "+el.toFixed(0)+"秒";
+  if(xs.length<5){
+    lastResult=null;
+    ["resMax","resAvg","resMed"].forEach(id=>$(id).textContent="--");
+    $("resNote").textContent="モーター音をほとんど拾えませんでした。静かな場所で、マイクをもっとモーターに近づけてもう一度測ってください。";
+    micSt.textContent="";
+    drawTrend(r); return;
+  }
+  const sorted=[...xs].sort((a,b)=>a-b);
+  const med=sorted[sorted.length>>1];
+  const avg=xs.reduce((a,b)=>a+b,0)/xs.length;
+  const mx=Math.max(...xs);
+  lastResult={max:mx,avg,med,samples:r.samples,dur:r.dur};
+  $("resMax").textContent=fmt(mx); $("resAvg").textContent=fmt(avg); $("resMed").textContent=fmt(med);
+  const heard=xs.length*0.15;
+  $("resNote").textContent=el.toFixed(0)+"秒のうち、約"+Math.min(el,heard).toFixed(0)+"秒ぶんモーター音を検出しました。";
+  $("saveBtn").disabled=false;
+  micSt.textContent="計測が終わりました。";
+  drawTrend(r);
+  box.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"nearest"});
+}
+function drawTrend(r){
+  const cv=$("trend"), dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W)return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const g=cv.getContext("2d"); g.scale(dpr,dpr); g.clearRect(0,0,W,H);
+  const L=46,R=8,T=8,B=20, pw=W-L-R, ph=H-T-B;
+  g.font="11px "+tok("--f-mono");
+  const s=r?r.samples:[];
+  let lo,hi;
+  if(s.length){lo=Math.min(...s.map(p=>p.r));hi=Math.max(...s.map(p=>p.r));}else{lo=0;hi=30000;}
+  const pad=Math.max(500,(hi-lo)*0.15); lo=Math.max(0,lo-pad); hi=hi+pad;
+  const step=[500,1000,2000,5000,10000].find(v=>(hi-lo)/v<=5)||20000;
+  lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const D=r?r.dur:20;
+  const fx=t=>L+t/D*pw, fy=v=>T+(1-(v-lo)/(hi-lo))*ph;
+  g.strokeStyle=tok("--grid"); g.fillStyle=tok("--muted"); g.lineWidth=1;
+  for(let v=lo;v<=hi+1;v+=step){const y=Math.round(fy(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();
+    const t=v>=1000?(v/1000)+"k":String(v); g.fillText(t,L-6-g.measureText(t).width,y+4);}
+  const ts=D<=20?5:10;
+  for(let t=0;t<=D;t+=ts){const x=fx(t);const lab=t+"s";const tw=g.measureText(lab).width;g.fillText(lab,Math.min(Math.max(x-tw/2,L),W-R-tw),H-4);}
+  if(!s.length)return;
+  // line, broken where the motor sound dropped out
+  g.strokeStyle=tok("--accent"); g.lineWidth=2; g.beginPath();
+  s.forEach((p,i)=>{const x=fx(p.t),y=fy(p.r); if(i&&p.t-s[i-1].t<0.5)g.lineTo(x,y); else g.moveTo(x,y);}); g.stroke();
+  if(lastResult){
+    const y=fy(lastResult.med); g.setLineDash([4,4]); g.strokeStyle=tok("--muted"); g.lineWidth=1;
+    g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke(); g.setLineDash([]);
+    const m=s.reduce((a,b)=>b.r>a.r?b:a); g.fillStyle=tok("--accent");
+    g.beginPath(); g.arc(fx(m.t),fy(m.r),4.5,0,7); g.fill();
+  }
 }
 function tick(){
-  if(!live||held)return;
+  if(!live)return;
+  const t=(performance.now()-run.t0)/1000;
   const {an,buf,avg}=live;
   an.getFloatFrequencyData(buf);
   let top=-200;
@@ -429,12 +533,15 @@ function tick(){
   if(top<-85) micSt.textContent="音が小さいです。マイクをモーターに近づけてください。";
   else if(!peaks.length) micSt.textContent="モーター音を探しています…（はっきりした音が聞こえると表示されます）";
   else micSt.textContent="";
-  show(); updMax();
+  show(); updMax(t);
+  $("progBar").style.width=Math.min(100,t/run.dur*100)+"%";
+  $("progEl").textContent=Math.floor(t)+"秒";
+  $("progLeft").textContent="のこり "+Math.max(0,Math.ceil(run.dur-t))+"秒";
+  if(t>=run.dur)finish();
 }
-micBtn.onclick=()=>live?stopMic():startMic();
-$("holdBtn").onclick=()=>{held=!held;$("holdBtn").textContent=held?"再開":"一時停止";micSt.textContent=held?"表示を止めています。この値を保存できます。":"";};
-$("resetMax").onclick=()=>{maxRpm=0;lastR=0;streak=0;updMax();};
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&live)stopMic();});
+micBtn.onclick=()=>live?finish():startMic();
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&live)finish();});
+window.addEventListener("resize",()=>{if(!$("result").hidden)drawTrend(lastResult?{samples:lastResult.samples,dur:lastResult.dur}:null);});
 
 /* ---------- boot ---------- */
 sample(); renderLog();
