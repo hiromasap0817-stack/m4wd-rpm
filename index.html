@@ -40,9 +40,18 @@ header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .brand{display:grid;gap:0}
 .eyebrow{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.72rem;letter-spacing:.28em;color:var(--accent)}
 h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:1.1;margin:0;letter-spacing:.04em}
-.checker{width:64px;height:24px;flex:none;opacity:.85;transform:skewX(-14deg);
-  background:conic-gradient(var(--fg) 25%, transparent 0 50%, var(--fg) 0 75%, transparent 0) 0 0/12px 12px;
-  -webkit-mask:linear-gradient(90deg,transparent,#000 70%);mask:linear-gradient(90deg,transparent,#000 70%)}
+
+.avatar{width:58px;height:58px;flex:none;border-radius:50%;overflow:hidden;position:relative;
+  background:conic-gradient(from 45deg,#1f252e 25%,#171b21 0 50%,#1f252e 0 75%,#171b21 0) 0 0/14px 14px;
+  border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(255,74,28,.15)}
+.avatar img{position:absolute;width:150%;max-width:none;left:-25%;top:-12%}
+.cheer{display:flex;align-items:flex-end;gap:10px}
+.cheer img{width:96px;flex:none;margin-bottom:-16px}
+.bubble{position:relative;flex:1;min-width:0;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 14px;font-weight:700;font-size:.95rem;line-height:1.5;margin-bottom:18px}
+.bubble::before{content:"";position:absolute;left:-8px;bottom:14px;border:8px solid transparent;border-right-color:var(--fg);border-left:0}
+.bubble b{color:var(--accent);font-family:var(--f-num);font-style:italic;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.result:not([hidden]) .cheer img{animation:hop .6s ease-out}}
+@keyframes hop{0%{transform:translateY(20px);opacity:0}60%{transform:translateY(-6px);opacity:1}100%{transform:none}}
 
 /* cockpit */
 .cockpit{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:22px;padding:14px 14px 16px;display:grid;gap:12px;overflow:hidden}
@@ -140,7 +149,7 @@ details[open] summary::after{content:"−"}
       <span class="eyebrow">MINI 4WD MOTOR METER</span>
       <h1>モーターメーター</h1>
     </div>
-    <div class="checker" aria-hidden="true"></div>
+    <div class="avatar" aria-hidden="true"><img src="mascot.svg" alt=""></div>
   </header>
 
   <section class="cockpit" aria-label="回転数メーター">
@@ -174,6 +183,7 @@ details[open] summary::after{content:"−"}
 
   <section class="card result" id="result" hidden aria-live="polite">
     <div class="card-h"><h2><span class="en">RESULT</span>計測結果</h2><span class="meta" id="resWhen"></span></div>
+    <div class="cheer"><img src="mascot.svg" alt="手を振るレースクイーンのお姉さん"><p class="bubble" id="cheer">おつかれさま！</p></div>
     <div class="stats">
       <div class="stat max"><span class="k">MAX</span><b id="resMax">--</b><small>RPM</small></div>
       <div class="stat"><span class="k">平均</span><b id="resAvg">--</b><small>RPM</small></div>
@@ -453,6 +463,7 @@ function finish(){
   if(xs.length<5){
     lastResult=null; $("saveBtn").disabled=true;
     ["resMax","resAvg","resMed"].forEach(id=>$(id).textContent="--");
+    $("cheer").textContent="あれ？音が聞こえなかったよ。もう少し近づけてみて！";
     $("resNote").textContent="モーター音をほとんど拾えませんでした。静かな場所で、マイクをもっとモーターに近づけてもう一度測ってください。";
     micSt.textContent="計測が終わりました。";
     drawTrend(r); return;
@@ -463,6 +474,9 @@ function finish(){
   $("resMax").textContent=fmt(mx); $("resAvg").textContent=fmt(avg); $("resMed").textContent=fmt(med);
   $("resNote").textContent=el.toFixed(0)+"秒のうち、約"+Math.min(el,xs.length*0.15).toFixed(0)+"秒ぶんモーター音を検出しました。点線は安定回転数です。";
   $("saveBtn").disabled=false;
+  const best=hist.length?Math.max(...hist.map(x=>x.rpm)):0;
+  const msg= best&&med>best ? "記録更新！自己ベストだよ！" : med>=30000 ? "すごい、速いね！" : med>=20000 ? "いい回りっぷり！" : "おつかれさま！";
+  const c=$("cheer"); c.textContent=msg+" "; const bb=document.createElement("b"); bb.textContent=fmt(med)+" rpm"; c.append(bb);
   $("rpm").textContent=fmt(med); setTarget(med);
   micSt.textContent="計測が終わりました。メーターは安定回転数を表示しています。";
   drawTrend(r);
