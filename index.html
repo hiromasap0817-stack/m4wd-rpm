@@ -193,17 +193,30 @@ function spectrum(x,sr){
   for(let i=0;i<acc.length;i++)acc[i]/=cnt;
   return {spec:acc, df:sr/N};
 }
+const MIN_PROM=15; // dB a peak must stand above its surroundings to count as a motor tone
 function findPeaks(spec,df){
   const db=i=>10*Math.log10(spec[i]+1e-20);
   const a=Math.max(2,Math.floor(fMin/df)), b=Math.min(spec.length-2,Math.ceil(fMax/df));
+  const W=Math.max(8,Math.round(150/df)), E=3;
   const loc=[];
-  for(let i=a;i<=b;i++) if(spec[i]>spec[i-1]&&spec[i]>=spec[i+1]) loc.push(i);
-  loc.sort((p,q)=>spec[q]-spec[p]);
+  for(let i=a+E;i<=b-E;i++){
+    let isMax=true;
+    for(let k=1;k<=E;k++){if(spec[i-k]>spec[i]||spec[i+k]>spec[i]){isMax=false;break;}}
+    if(!isMax)continue;
+    // noise floor = median of the band around the peak, skipping the peak itself
+    const around=[];
+    for(let j=Math.max(1,i-W);j<=Math.min(spec.length-1,i+W);j++) if(Math.abs(j-i)>E) around.push(spec[j]);
+    around.sort((x,y)=>x-y);
+    const floor=10*Math.log10(around[around.length>>1]+1e-20);
+    const prom=db(i)-floor;
+    if(prom>=MIN_PROM) loc.push({i,prom});
+  }
+  loc.sort((p,q)=>spec[q.i]-spec[p.i]);
   const out=[];
-  for(const i of loc){
+  for(const {i,prom} of loc){
     const y0=db(i-1),y1=db(i),y2=db(i+1), d=(y0-2*y1+y2)?0.5*(y0-y2)/(y0-2*y1+y2):0;
     const f=(i+d)*df;
-    if(out.every(p=>Math.abs(p.f-f)/p.f>0.06)) out.push({f,db:y1});
+    if(out.every(p=>Math.abs(p.f-f)/p.f>0.06)) out.push({f,db:y1,prom});
     if(out.length>=3)break;
   }
   return out;
@@ -213,7 +226,7 @@ function findPeaks(spec,df){
 const fmt=n=>Math.round(n).toLocaleString("ja-JP");
 const rpmOf=f=>f*60/ppr;
 function show(){
-  if(!cur||!cur.peaks.length){$("rpm").textContent="--";$("freq").textContent="--";draw();return;}
+  if(!cur||!cur.peaks.length){$("rpm").textContent="--";$("freq").textContent="--";$("cands").innerHTML="";$("saveBtn").disabled=true;draw();return;}
   const p=cur.peaks[cur.sel];
   $("rpm").textContent=fmt(rpmOf(p.f));
   $("freq").textContent=fmt(p.f);
@@ -402,7 +415,8 @@ function tick(){
     const k=peaks.findIndex(p=>Math.abs(p.f-prevF)/prevF<0.08); if(k>=0)sel=k;
   }
   cur={spec:avg,df,peaks,sel,real:true};
-  if(top<-85){micSt.textContent="音が小さいです。マイクをモーターに近づけてください。";}
+  if(top<-85) micSt.textContent="音が小さいです。マイクをモーターに近づけてください。";
+  else if(!peaks.length) micSt.textContent="モーター音を探しています…（はっきりした音が聞こえると表示されます）";
   else micSt.textContent="";
   show(); updMax();
 }
