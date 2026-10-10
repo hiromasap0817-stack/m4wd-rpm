@@ -254,7 +254,7 @@ details[open] summary::after{content:"−"}
     </div>
     <button class="album-btn" id="albumBtn" type="button" aria-label="アルバムを開く">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
-      <span id="albumCount">1/14</span><span class="dot" id="albumDot" hidden></span>
+      <span id="albumCount">1/34</span><span class="dot" id="albumDot" hidden></span>
     </button>
   </header>
   <div class="hero-space" aria-hidden="true"></div>
@@ -583,7 +583,7 @@ function finish(){
   $("saveBtn").disabled=false;
   const best=hist.length?Math.max(...hist.map(x=>x.rpm)):0;
   const msg= best&&med>best ? "記録更新！自己ベストだよ！" : med>=30000 ? "すごい、速いね！" : med>=20000 ? "いい回りっぷり！" : "おつかれさま！";
-  stats.runs++; stats.best=Math.max(stats.best,med); saveStats();
+  stats.runs++; stats.best=Math.max(stats.best,med); stats.peak=Math.max(stats.peak||0,mx); saveStats();
   const fresh=checkUnlocks();
   if((best&&med>best)||fresh.length) setTimeout(()=>celebrate(best&&med>best?med:0,fresh),700);
   const c=$("cheer"); c.textContent=msg+" "; const bb=document.createElement("b"); bb.textContent=fmt(med)+" rpm"; c.append(bb);
@@ -759,22 +759,42 @@ document.addEventListener("click",e=>{ if(document.body.classList.contains("peek
 const GIRLS=[
   {id:"g1",name:"パラソルでお出迎え",cond:"最初から",need:null},
   {id:"g2",name:"腰に手をあてて",cond:"計測を1回",need:["runs",1]},
+  {id:"g31",name:"パラソルウォーク",cond:"安定回転数 8,000rpm",need:["best",8000]},
+  {id:"g16",name:"カフェでひと息",cond:"記録を1件保存",need:["saved",1]},
   {id:"g7",name:"空を見上げて",cond:"安定回転数 10,000rpm",need:["best",10000]},
   {id:"g4",name:"見上げてにっこり",cond:"計測を5回",need:["runs",5]},
-  {id:"g14",name:"ナイトステージ",cond:"安定回転数 12,500rpm",need:["best",12500]},
+  {id:"g18",name:"ほおづえ",cond:"安定回転数 11,000rpm",need:["best",11000]},
+  {id:"g21",name:"街でばったり",cond:"記録を3件保存",need:["saved",3]},
+  {id:"g14",name:"ナイトステージ",cond:"安定回転数 12,000rpm",need:["best",12000]},
+  {id:"g22",name:"ベンチでひと休み",cond:"計測を10回",need:["runs",10]},
+  {id:"g28",name:"またね！",cond:"安定回転数 13,000rpm",need:["best",13000]},
   {id:"g11",name:"夕焼けのテラス",cond:"記録を5件保存",need:["saved",5]},
-  {id:"g8",name:"のぞきこみ",cond:"計測を10回",need:["runs",10]},
+  {id:"g8",name:"のぞきこみ",cond:"安定回転数 14,000rpm",need:["best",14000]},
+  {id:"g23",name:"ヘルメットと一緒に",cond:"計測を15回",need:["runs",15]},
   {id:"g3",name:"ピットでひと休み",cond:"安定回転数 15,000rpm",need:["best",15000]},
-  {id:"g10",name:"VIPラウンジで",cond:"計測を15回",need:["runs",15]},
-  {id:"g6",name:"風を受けて",cond:"安定回転数 17,500rpm",need:["best",17500]},
-  {id:"g9",name:"振り返り",cond:"計測を20回",need:["runs",20]},
+  {id:"g20",name:"花のガーデン",cond:"MAX 15,000rpm",need:["peak",15000]},
+  {id:"g26",name:"夕暮れのほおづえ",cond:"安定回転数 16,000rpm",need:["best",16000]},
+  {id:"g10",name:"VIPラウンジで",cond:"計測を20回",need:["runs",20]},
+  {id:"g6",name:"風を受けて",cond:"安定回転数 17,000rpm",need:["best",17000]},
+  {id:"g33",name:"桜の街角",cond:"記録を10件保存",need:["saved",10]},
+  {id:"g32",name:"ピットウォーク",cond:"安定回転数 18,000rpm",need:["best",18000]},
+  {id:"g24",name:"ナイターの笑顔",cond:"計測を25回",need:["runs",25]},
+  {id:"g15",name:"チェッカーフラッグ",cond:"安定回転数 19,000rpm",need:["best",19000]},
+  {id:"g9",name:"振り返り",cond:"MAX 20,000rpm",need:["peak",20000]},
   {id:"g12",name:"ナイトピット",cond:"安定回転数 20,000rpm",need:["best",20000]},
+  {id:"g30",name:"海辺の風",cond:"計測を30回",need:["runs",30]},
+  {id:"g19",name:"ナイターのピット",cond:"安定回転数 22,500rpm",need:["best",22500]},
+  {id:"g34",name:"振り向きざま",cond:"記録を15件保存",need:["saved",15]},
+  {id:"g27",name:"びっくり！",cond:"計測を35回",need:["runs",35]},
   {id:"g5",name:"ウインク",cond:"安定回転数 25,000rpm",need:["best",25000]},
-  {id:"g13",name:"ドレスアップ",cond:"安定回転数 30,000rpm",need:["best",30000]}
+  {id:"g25",name:"見返り",cond:"MAX 25,000rpm",need:["peak",25000]},
+  {id:"g29",name:"大笑い",cond:"安定回転数 27,500rpm",need:["best",27500]},
+  {id:"g13",name:"ドレスアップ",cond:"計測を40回",need:["runs",40]},
+  {id:"g17",name:"優勝おめでとう！",cond:"安定回転数 30,000rpm",need:["best",30000]}
 ];
 const SKEY="m4wd-stats";
 function loadStats(){let s={};try{s=JSON.parse(localStorage.getItem(SKEY))||{};}catch(e){}
-  s.runs=s.runs||0; s.best=Math.max(s.best||0, ...hist.map(x=>x.rpm||0)); s.saved=hist.length; s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1"; return s;}
+  s.runs=s.runs||0; s.peak=Math.max(s.peak||0,...hist.map(x=>x.max||0)); s.best=Math.max(s.best||0, ...hist.map(x=>x.rpm||0)); s.saved=hist.length; s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1"; return s;}
 function saveStats(){try{localStorage.setItem(SKEY,JSON.stringify(stats));}catch(e){}}
 let stats=loadStats();
 const isOpen=g=>!g.need||stats[g.need[0]]>=g.need[1];
@@ -825,7 +845,7 @@ function renderAlbum(){
       const c=document.createElement("span"); c.className="cond"; c.textContent=g.cond;
       const [k,need]=g.need, have=Math.min(stats[k],need);
       const pb=document.createElement("span"); pb.className="pbar"; const f=document.createElement("i"); f.style.width=(have/need*100)+"%"; pb.append(f);
-      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=k==="runs"?have+" / "+need+" 回":k==="saved"?have+" / "+need+" 件":fmt(stats.best)+" / "+fmt(need);
+      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=k==="runs"?have+" / "+need+" 回":k==="saved"?have+" / "+need+" 件":fmt(stats[k])+" / "+fmt(need);
       lk.append(ln,c,pb,pn); t.append(lk);
     }
     grid.append(t);
