@@ -55,7 +55,7 @@ body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
 .tap-hint{position:fixed;left:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:4;font-size:.78rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none}
 body.peek .tap-hint{opacity:1}
 body:not(.peek) .talk{display:none}
-.bg img{transform-origin:50% 50%}
+.bg img{transform-origin:50% 50%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .bg img.hop{animation:hop .7s ease-out}
 .bg img.jump{animation:jump 1.4s ease-out}
 @keyframes hop{0%{transform:scale(1.05)}25%{transform:scale(1.05) translateY(-16px) rotate(-.8deg)}50%{transform:scale(1.05) translateY(0) rotate(.6deg)}70%{transform:scale(1.05) translateY(-5px) rotate(-.3deg)}100%{transform:scale(1.05)}}
@@ -662,7 +662,6 @@ function say(html){
   clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),5000);
 }
 function talk(){
-  bounce("hop");
   const el=$("talk"), html=lineNow();
   el.classList.remove("show"); void el.offsetWidth;
   el.innerHTML=html; el.classList.add("show");
