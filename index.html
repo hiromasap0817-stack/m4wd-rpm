@@ -252,7 +252,7 @@ details[open] summary::after{content:"−"}
     </div>
     <button class="album-btn" id="albumBtn" type="button" aria-label="アルバムを開く">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
-      <span id="albumCount">1/8</span><span class="dot" id="albumDot" hidden></span>
+      <span id="albumCount">1/9</span><span class="dot" id="albumDot" hidden></span>
     </button>
   </header>
   <div class="hero-space" aria-hidden="true"></div>
@@ -761,7 +761,8 @@ const GIRLS=[
   {id:"g3",name:"ピットでひと休み",cond:"安定回転数 20,000rpm",need:["best",20000]},
   {id:"g6",name:"風を受けて",cond:"安定回転数 25,000rpm",need:["best",25000]},
   {id:"g8",name:"のぞきこみ",cond:"計測を25回",need:["runs",25]},
-  {id:"g5",name:"ウインク",cond:"安定回転数 30,000rpm",need:["best",30000]}
+  {id:"g5",name:"ウインク",cond:"安定回転数 30,000rpm",need:["best",30000]},
+  {id:"g9",name:"振り返り",cond:"計測を50回",need:["runs",50]}
 ];
 const SKEY="m4wd-stats";
 function loadStats(){let s={};try{s=JSON.parse(localStorage.getItem(SKEY))||{};}catch(e){}
