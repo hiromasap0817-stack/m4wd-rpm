@@ -38,6 +38,11 @@ header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
 .label{font-size:.72rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
 .rpm{font-family:var(--f-display);font-weight:700;font-size:clamp(3rem,15vw,4.6rem);line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
 .rpm small{font-size:1.1rem;color:var(--muted);font-weight:500}
+.nums{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.maxbox{display:grid;gap:2px;text-align:right;padding:8px 12px;border-radius:10px;background:var(--accent-soft)}
+.maxbox .label{color:var(--accent);font-weight:700}
+.maxnum{font-family:var(--f-display);font-weight:700;font-size:clamp(1.6rem,8vw,2.2rem);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.maxnum small{font-size:.8rem;margin-left:4px}
 .meta{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
 .meta b{color:var(--fg);font-weight:600}
 canvas{width:100%;height:150px;display:block}
@@ -97,8 +102,11 @@ body{margin:0}
       <span class="label">回転数</span>
       <span id="source" class="chip">サンプル音</span>
     </div>
-    <div class="rpm"><span id="rpm">--</span><small>rpm</small></div>
-    <div class="meta">ピーク <b id="freq">--</b> Hz ・ 1回転 <b id="pprv">6</b> パルス ・ 最高 <b id="maxv">--</b> rpm</div>
+    <div class="nums">
+      <div class="rpm"><span id="rpm">--</span><small>rpm</small></div>
+      <div class="maxbox"><span class="label">MAX</span><span class="maxnum"><span id="maxv">--</span><small>rpm</small></span></div>
+    </div>
+    <div class="meta">ピーク <b id="freq">--</b> Hz ・ 1回転 <b id="pprv">6</b> パルス</div>
     <canvas id="spec" aria-label="周波数スペクトル"></canvas>
     <div class="level" aria-hidden="true"><i id="lvl"></i></div>
     <button class="mic" id="micBtn" type="button"><span class="dot"></span><span id="micTxt">マイクで計測スタート</span></button>
@@ -337,7 +345,7 @@ function renderLog(){
     if(!r.example){const d=document.createElement("button");d.className="del";d.type="button";d.setAttribute("aria-label",r.name+"を削除");d.textContent="×";
       d.onclick=()=>{hist.splice(i,1);store(hist);renderLog();};li.append(d);} else li.append(document.createElement("span"));
     const bar=document.createElement("div");bar.className="bar";const fill=document.createElement("i");fill.style.width=(r.rpm/max*100)+"%";bar.append(fill);li.append(bar);
-    if(r.at){const w=document.createElement("div");w.className="when";w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+" ・ "+fmt(r.freq)+"Hz ÷ "+r.ppr;li.append(w);}
+    if(r.at){const w=document.createElement("div");w.className="when";w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})+(r.max?" ・ MAX "+fmt(r.max)+" rpm":"")+" ・ "+fmt(r.freq)+"Hz ÷ "+r.ppr;li.append(w);}
     ul.append(li);
   });
 }
@@ -345,7 +353,7 @@ $("saveBtn").onclick=()=>{
   if(!cur||!cur.real)return;
   const p=cur.peaks[cur.sel];
   const name=$("name").value.trim()||"モーター "+(hist.length+1);
-  hist.unshift({name,rpm:rpmOf(p.f),freq:p.f,ppr,at:Date.now()});
+  hist.unshift({name,rpm:rpmOf(p.f),max:maxRpm||0,freq:p.f,ppr,at:Date.now()});
   store(hist);$("name").value="";renderLog();
   $("status").className="";$("status").textContent="「"+name+"」を保存しました。";
 };
@@ -353,11 +361,14 @@ $("saveBtn").onclick=()=>{
 /* ---------- live microphone ---------- */
 let live=null, held=false, maxRpm=0;
 const micBtn=$("micBtn"), micTxt=$("micTxt"), micSt=$("micStatus");
+let lastR=0, streak=0;
 function updMax(){
   if(cur&&cur.real&&cur.peaks.length&&!held){
     const r=rpmOf(cur.peaks[cur.sel].f);
-    if(r>maxRpm)maxRpm=r;
-  }
+    streak=(lastR&&Math.abs(r-lastR)/lastR<0.03)?streak+1:1;
+    lastR=r;
+    if(streak>=3&&r>maxRpm)maxRpm=r; // ignore one-off spikes
+  }else if(!held){lastR=0;streak=0;}
   $("maxv").textContent=maxRpm?fmt(maxRpm):"--";
 }
 async function startMic(){
@@ -422,7 +433,7 @@ function tick(){
 }
 micBtn.onclick=()=>live?stopMic():startMic();
 $("holdBtn").onclick=()=>{held=!held;$("holdBtn").textContent=held?"再開":"一時停止";micSt.textContent=held?"表示を止めています。この値を保存できます。":"";};
-$("resetMax").onclick=()=>{maxRpm=0;updMax();};
+$("resetMax").onclick=()=>{maxRpm=0;lastR=0;streak=0;updMax();};
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&live)stopMic();});
 
 /* ---------- boot ---------- */
