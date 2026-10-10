@@ -51,10 +51,24 @@ body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
   transition:opacity .2s ease, transform .25s cubic-bezier(.3,1.6,.5,1)}
 .talk::before{content:"";position:absolute;left:50%;top:-10px;margin-left:-10px;border:10px solid transparent;border-bottom-color:rgba(255,255,255,.35);border-top:0}
 .talk.show{opacity:1;transform:none}
-.talk b{color:var(--hot)}
+.talk b{color:var(--hot);white-space:nowrap}
 .tap-hint{position:fixed;left:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:4;font-size:.78rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none}
 body.peek .tap-hint{opacity:1}
 body:not(.peek) .talk{display:none}
+.bg img{transform-origin:50% 50%}
+.bg img.hop{animation:hop .7s ease-out}
+.bg img.jump{animation:jump 1.4s ease-out}
+@keyframes hop{0%{transform:scale(1.05)}25%{transform:scale(1.05) translateY(-16px) rotate(-.8deg)}50%{transform:scale(1.05) translateY(0) rotate(.6deg)}70%{transform:scale(1.05) translateY(-5px) rotate(-.3deg)}100%{transform:scale(1.05)}}
+@keyframes jump{0%{transform:scale(1.09)}15%{transform:scale(1.09) translateY(-34px) rotate(-1.2deg)}32%{transform:scale(1.09) translateY(0)}48%{transform:scale(1.09) translateY(-22px) rotate(1deg)}64%{transform:scale(1.09) translateY(0)}78%{transform:scale(1.09) translateY(-8px)}100%{transform:scale(1.09)}}
+.confetti{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translate3d(var(--dx),110vh,0) rotate(var(--rot))}}
+.best-tag{position:fixed;left:0;right:0;top:calc(12% + env(safe-area-inset-top,0px));z-index:4;text-align:center;pointer-events:none;
+  font-family:var(--f-num);font-style:italic;font-weight:700;font-size:clamp(2rem,11vw,3.2rem);letter-spacing:.06em;color:var(--hot);
+  text-shadow:0 3px 0 #b8860b,0 6px 20px rgba(0,0,0,.6);opacity:0}
+.best-tag.show{animation:tag 2.6s ease-out forwards}
+@keyframes tag{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.12)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.bg img.hop,.bg img.jump{animation:none}.confetti{display:none}}
 .hero-space{height:30vh;min-height:190px}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 84px;display:grid;gap:16px}
 
@@ -172,6 +186,7 @@ details[open] summary::after{content:"−"}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
   <span id="peekTxt">お姉さんを見る</span>
 </button>
+<div class="best-tag" id="bestTag" aria-hidden="true">NEW RECORD!</div>
 <div class="talk" id="talk" role="status" aria-live="polite"></div>
 <p class="tap-hint">お姉さんをタップしてね</p>
 <main class="wrap">
@@ -508,6 +523,7 @@ function finish(){
   $("saveBtn").disabled=false;
   const best=hist.length?Math.max(...hist.map(x=>x.rpm)):0;
   const msg= best&&med>best ? "記録更新！自己ベストだよ！" : med>=30000 ? "すごい、速いね！" : med>=20000 ? "いい回りっぷり！" : "おつかれさま！";
+  if(best&&med>best) setTimeout(()=>celebrate(med),700);
   const c=$("cheer"); c.textContent=msg+" "; const bb=document.createElement("b"); bb.textContent=fmt(med)+" rpm"; c.append(bb);
   $("rpm").textContent=fmt(med); setTarget(med);
   micSt.textContent="計測が終わりました。メーターは安定回転数を表示しています。";
@@ -613,7 +629,40 @@ function lineNow(){
   let i; do{ i=Math.floor(Math.random()*pool.length); }while(pool.length>1&&i===lastLine);
   lastLine=i; return pool[i];
 }
+function bounce(cls){
+  const img=document.querySelector(".bg img");
+  img.classList.remove("hop","jump"); void img.offsetWidth; img.classList.add(cls);
+}
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const box=document.createElement("div"); box.className="confetti";
+  const cols=["#ff4a1c","#ffcf33","#2f8cff","#ffffff"];
+  for(let i=0;i<60;i++){
+    const c=document.createElement("i");
+    c.style.left=Math.random()*100+"%";
+    c.style.background=cols[i%cols.length];
+    c.style.setProperty("--dx",(Math.random()*120-60)+"px");
+    c.style.setProperty("--rot",(Math.random()*900-450)+"deg");
+    c.style.animationDuration=(1.8+Math.random()*1.6)+"s";
+    c.style.animationDelay=(Math.random()*.6)+"s";
+    box.append(c);
+  }
+  document.body.append(box); setTimeout(()=>box.remove(),4200);
+}
+function celebrate(rpm){
+  setPeek(true);
+  bounce("jump"); confetti();
+  const t=$("bestTag"); t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  say("やったね！記録更新！自己ベスト <b>"+fmt(rpm)+" rpm</b> だよ！");
+}
+function say(html){
+  const el=$("talk");
+  el.classList.remove("show"); void el.offsetWidth;
+  el.innerHTML=html; el.classList.add("show");
+  clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),5000);
+}
 function talk(){
+  bounce("hop");
   const el=$("talk"), html=lineNow();
   el.classList.remove("show"); void el.offsetWidth;
   el.innerHTML=html; el.classList.add("show");
