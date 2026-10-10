@@ -31,7 +31,8 @@ body{margin:0;color:var(--fg);font-family:var(--f-body);font-size:15px;line-heig
 html{background:var(--bg)}
 [hidden]{display:none!important}
 .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
-.bg img{width:100%;height:100%;object-fit:cover;object-position:52% 0;display:block}
+.bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:52% 0;display:block;opacity:0;transition:opacity .5s ease}
+.bg img.on{opacity:1}
 .bg::after{content:"";position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(12,14,17,.55) 0%,rgba(12,14,17,0) 18%,rgba(12,14,17,0) 34%,rgba(12,14,17,.55) 52%,rgba(12,14,17,.8) 100%)}
 .wrap{transition:opacity .35s ease}
@@ -69,6 +70,43 @@ body:not(.peek) .talk{display:none}
 .best-tag.show{animation:tag 2.6s ease-out forwards}
 @keyframes tag{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.12)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.bg img.hop,.bg img.jump{animation:none}.confetti{display:none}}
+.album-btn{display:flex;align-items:center;gap:6px;font:inherit;font-family:var(--f-num);font-weight:700;font-size:.78rem;letter-spacing:.12em;
+  padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(12,14,17,.6);color:var(--fg);cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative}
+.album-btn svg{width:16px;height:16px}
+.album-btn .dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.album{position:fixed;inset:0;z-index:20;background:rgba(10,12,15,.96);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.album-in{max-width:560px;margin:0 auto;display:grid;gap:14px}
+.album-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.album-h h2{font-size:1.3rem}
+.album-count{font-family:var(--f-num);font-style:italic;font-weight:700;color:var(--hot);font-size:1rem;margin-left:6px}
+.x{font:inherit;font-size:1.4rem;line-height:1;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;flex:none}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:520px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tile{position:relative;aspect-ratio:2/3;max-width:100%;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel);padding:0;cursor:pointer;font:inherit;color:var(--fg);text-align:left}
+.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:20px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:.8rem;font-weight:700;display:grid;gap:2px}
+.tile .no{font-family:var(--f-num);font-style:italic;font-size:.7rem;color:var(--hot);letter-spacing:.1em}
+.tile.locked{cursor:default}
+.tile.locked img{filter:blur(16px) brightness(.35) saturate(.4);transform:scale(1.2)}
+.tile .lock{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;padding:12px;text-align:center}
+.tile .lock svg{width:30px;height:30px;color:var(--muted)}
+.tile .cond{font-size:.78rem;font-weight:700;color:var(--fg)}
+.tile .pbar{width:100px;max-width:100%;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.tile .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--hot))}
+.tile .pnum{font-family:var(--f-num);font-size:.72rem;color:var(--muted)}
+.tile .bgmark{position:absolute;top:8px;left:8px;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent);color:#fff}
+.tile .newmark{position:absolute;top:8px;right:8px;font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.7rem;padding:2px 8px;border-radius:4px;background:var(--hot);color:#111}
+.album-note{font-size:.8rem;color:var(--muted);margin:0}
+.viewer{position:fixed;inset:0;z-index:30;background:#000;display:grid;grid-template-rows:1fr auto}
+.viewer img{width:100%;height:100%;object-fit:contain;min-height:0}
+.viewer .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(10,12,15,.9)}
+.viewer .vname{flex:1;min-width:0;text-align:center;font-weight:700;font-size:.9rem}
+.viewer .vbtn{font:inherit;font-weight:700;font-size:.85rem;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;white-space:nowrap}
+.viewer .vbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.viewer .vx{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px}
+.unlock-tag{color:var(--hot)}
 .hero-space{height:30vh;min-height:190px}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 84px;display:grid;gap:16px}
 
@@ -181,7 +219,7 @@ details[open] summary::after{content:"−"}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head><body>
-<div class="bg" aria-hidden="true"><img src="rq-full.jpg" alt=""></div>
+<div class="bg" aria-hidden="true"><img id="bgA" class="on" src="rq/g1.jpg" alt=""><img id="bgB" alt=""></div>
 <button class="peek-btn" id="peekBtn" type="button" aria-pressed="false">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
   <span id="peekTxt">お姉さんと話す</span>
@@ -189,13 +227,33 @@ details[open] summary::after{content:"−"}
 <div class="best-tag" id="bestTag" aria-hidden="true">NEW RECORD!</div>
 <div class="talk" id="talk" role="status" aria-live="polite"></div>
 <p class="tap-hint">お姉さんをタップしてね</p>
+<div class="album" id="album" hidden role="dialog" aria-modal="true" aria-label="お姉さんアルバム">
+  <div class="album-in">
+    <div class="album-h"><h2><span class="en">ALBUM</span>お姉さんアルバム<span class="album-count" id="albumCount2"></span></h2><button class="x" id="albumClose" type="button" aria-label="閉じる">×</button></div>
+    <p class="album-note">計測回数と安定回転数でお姉さんがアンロックされます。タップすると大きく見られて、メーター画面の背景にもできます。</p>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true">
+  <img id="vImg" alt="">
+  <button class="x vx" id="vClose" type="button" aria-label="閉じる">×</button>
+  <div class="bar">
+    <button class="vbtn" id="vPrev" type="button" aria-label="前へ">←</button>
+    <span class="vname" id="vName"></span>
+    <button class="vbtn primary" id="vSet" type="button">背景にする</button>
+    <button class="vbtn" id="vNext" type="button" aria-label="次へ">→</button>
+  </div>
+</div>
 <main class="wrap">
   <header>
     <div class="brand">
       <span class="eyebrow">MINI 4WD MOTOR METER</span>
       <h1>モーターメーター</h1>
     </div>
-    
+    <button class="album-btn" id="albumBtn" type="button" aria-label="アルバムを開く">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+      <span id="albumCount">1/8</span><span class="dot" id="albumDot" hidden></span>
+    </button>
   </header>
   <div class="hero-space" aria-hidden="true"></div>
 
@@ -523,7 +581,9 @@ function finish(){
   $("saveBtn").disabled=false;
   const best=hist.length?Math.max(...hist.map(x=>x.rpm)):0;
   const msg= best&&med>best ? "記録更新！自己ベストだよ！" : med>=30000 ? "すごい、速いね！" : med>=20000 ? "いい回りっぷり！" : "おつかれさま！";
-  if(best&&med>best) setTimeout(()=>celebrate(med),700);
+  stats.runs++; stats.best=Math.max(stats.best,med); saveStats();
+  const fresh=checkUnlocks();
+  if((best&&med>best)||fresh.length) setTimeout(()=>celebrate(best&&med>best?med:0,fresh),700);
   const c=$("cheer"); c.textContent=msg+" "; const bb=document.createElement("b"); bb.textContent=fmt(med)+" rpm"; c.append(bb);
   $("rpm").textContent=fmt(med); setTarget(med);
   micSt.textContent="計測が終わりました。メーターは安定回転数を表示しています。";
@@ -641,7 +701,7 @@ function lineNow(){
   const i=deck.shift(); lastLine=i; return pool[Math.min(i,pool.length-1)];
 }
 function bounce(cls){
-  const img=document.querySelector(".bg img");
+  const img=document.querySelector(".bg img.on");
   img.classList.remove("hop","jump"); void img.offsetWidth; img.classList.add(cls);
 }
 function confetti(){
@@ -660,11 +720,15 @@ function confetti(){
   }
   document.body.append(box); setTimeout(()=>box.remove(),4200);
 }
-function celebrate(rpm){
+function celebrate(rpm,fresh){
   setPeek(true);
-  bounce("jump"); confetti();
-  const t=$("bestTag"); t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
-  say("やったね！記録更新！自己ベスト <b>"+fmt(rpm)+" rpm</b> だよ！");
+  if(fresh&&fresh.length){ setBg(fresh[fresh.length-1].id); }
+  setTimeout(()=>bounce("jump"),fresh&&fresh.length?550:0); confetti();
+  const t=$("bestTag"); t.textContent=rpm?"NEW RECORD!":"UNLOCK!";
+  t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  let msg=rpm?"やったね！記録更新！自己ベスト <b>"+fmt(rpm)+" rpm</b> だよ！":"";
+  if(fresh&&fresh.length) msg+=(msg?"<br>":"")+"新しい私「<b>"+fresh.map(g=>g.name).join("」「")+"</b>」がアルバムに追加されたよ♪";
+  say(msg);
 }
 function say(html){
   const el=$("talk");
@@ -673,22 +737,116 @@ function say(html){
   clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),5000);
 }
 function talk(){
+  nextTalkBg();
   const el=$("talk"), html=lineNow();
   el.classList.remove("show"); void el.offsetWidth;
   el.innerHTML=html; el.classList.add("show");
   clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),Math.max(4500,el.textContent.length*120));
 }
 function setPeek(on){
-  if(!on){ $("talk").classList.remove("show"); }
+  if(!on){ $("talk").classList.remove("show"); setBg(stats.bg); }
   document.body.classList.toggle("peek",on);
   $("peekBtn").setAttribute("aria-pressed",on);
   $("peekTxt").textContent=on?"メーターに戻る":"お姉さんと話す";
 }
 $("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
-document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn")) talk(); });
+document.addEventListener("click",e=>{ if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn,#album,#viewer,#albumBtn")) talk(); });
+
+/* ---------- gallery & unlocks ---------- */
+const GIRLS=[
+  {id:"g1",name:"パラソルでお出迎え",cond:"最初から",need:null},
+  {id:"g2",name:"腰に手をあてて",cond:"計測を1回",need:["runs",1]},
+  {id:"g7",name:"空を見上げて",cond:"計測を5回",need:["runs",5]},
+  {id:"g4",name:"見上げてにっこり",cond:"計測を10回",need:["runs",10]},
+  {id:"g3",name:"ピットでひと休み",cond:"安定回転数 20,000rpm",need:["best",20000]},
+  {id:"g6",name:"風を受けて",cond:"安定回転数 25,000rpm",need:["best",25000]},
+  {id:"g8",name:"のぞきこみ",cond:"計測を25回",need:["runs",25]},
+  {id:"g5",name:"ウインク",cond:"安定回転数 30,000rpm",need:["best",30000]}
+];
+const SKEY="m4wd-stats";
+function loadStats(){let s={};try{s=JSON.parse(localStorage.getItem(SKEY))||{};}catch(e){}
+  s.runs=s.runs||0; s.best=Math.max(s.best||0, ...hist.map(x=>x.rpm||0)); s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1"; return s;}
+function saveStats(){try{localStorage.setItem(SKEY,JSON.stringify(stats));}catch(e){}}
+let stats=loadStats();
+const isOpen=g=>!g.need||stats[g.need[0]]>=g.need[1];
+function checkUnlocks(){
+  const fresh=GIRLS.filter(g=>isOpen(g)&&!stats.unlocked.includes(g.id));
+  fresh.forEach(g=>stats.unlocked.push(g.id)); saveStats(); updAlbumBtn(); return fresh;
+}
+const imgOf=id=>"rq/"+id+".jpg";
+const unlockedList=()=>GIRLS.filter(g=>stats.unlocked.includes(g.id));
+function updAlbumBtn(){
+  const n=stats.unlocked.length;
+  $("albumCount").textContent=n+"/"+GIRLS.length; $("albumCount2").textContent=n+"/"+GIRLS.length;
+  $("albumDot").hidden=!stats.unlocked.some(id=>!stats.seen.includes(id));
+}
+let curBg=stats.bg;
+function setBg(id){
+  if(id===curBg&&$("bgA").classList.contains("on")&&$("bgA").getAttribute("src")===imgOf(id))return;
+  curBg=id;
+  const on=document.querySelector(".bg img.on"), off=on.id==="bgA"?$("bgB"):$("bgA");
+  const pre=new Image(); pre.onload=()=>{ off.src=pre.src; off.classList.add("on"); on.classList.remove("on"); }; pre.src=imgOf(id);
+}
+function nextTalkBg(){
+  const list=unlockedList(); if(list.length<2)return;
+  const i=list.findIndex(g=>g.id===curBg);
+  setBg(list[(i+1)%list.length].id);
+}
+// album
+function renderAlbum(){
+  const grid=$("grid"); grid.innerHTML="";
+  GIRLS.forEach((g,i)=>{
+    const open=stats.unlocked.includes(g.id);
+    const t=document.createElement("button"); t.type="button"; t.className="tile"+(open?"":" locked");
+    const im=document.createElement("img"); im.src="rq/"+g.id+"-s.jpg"; im.alt=open?g.name:""; im.loading="lazy"; t.append(im);
+    if(open){
+      const cap=document.createElement("span"); cap.className="cap";
+      const no=document.createElement("span"); no.className="no"; no.textContent="No."+(i+1);
+      const nm=document.createElement("span"); nm.textContent=g.name; cap.append(no,nm); t.append(cap);
+      if(stats.bg===g.id){const m=document.createElement("span");m.className="bgmark";m.textContent="背景";t.append(m);}
+      if(!stats.seen.includes(g.id)){const m=document.createElement("span");m.className="newmark";m.textContent="NEW";t.append(m);}
+      t.onclick=()=>openViewer(g.id);
+    }else{
+      t.disabled=true; t.setAttribute("aria-label","No."+(i+1)+" ロック中："+g.cond);
+      const lk=document.createElement("span"); lk.className="lock";
+      lk.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+      const c=document.createElement("span"); c.className="cond"; c.textContent=g.cond;
+      const [k,need]=g.need, have=Math.min(stats[k],need);
+      const pb=document.createElement("span"); pb.className="pbar"; const f=document.createElement("i"); f.style.width=(have/need*100)+"%"; pb.append(f);
+      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=k==="runs"?have+" / "+need+" 回":fmt(stats.best)+" / "+fmt(need);
+      lk.append(c,pb,pn); t.append(lk);
+    }
+    grid.append(t);
+  });
+}
+function openAlbum(){ renderAlbum(); $("album").hidden=false; document.body.style.overflow="hidden"; }
+function closeAlbum(){ $("album").hidden=true; document.body.style.overflow=""; updAlbumBtn(); }
+let vIdx=0;
+function openViewer(id){
+  const list=unlockedList(); vIdx=Math.max(0,list.findIndex(g=>g.id===id)); showViewer(); $("viewer").hidden=false;
+}
+function showViewer(){
+  const list=unlockedList(), g=list[vIdx];
+  $("vImg").src=imgOf(g.id); $("vImg").alt=g.name; $("vName").textContent=g.name;
+  $("vSet").textContent=stats.bg===g.id?"背景に設定中":"背景にする"; $("vSet").disabled=stats.bg===g.id;
+  if(!stats.seen.includes(g.id)){stats.seen.push(g.id);saveStats();}
+  $("vPrev").disabled=$("vNext").disabled=list.length<2;
+}
+$("vPrev").onclick=()=>{const n=unlockedList().length; vIdx=(vIdx-1+n)%n; showViewer();};
+$("vNext").onclick=()=>{const n=unlockedList().length; vIdx=(vIdx+1)%n; showViewer();};
+$("vSet").onclick=()=>{const g=unlockedList()[vIdx]; stats.bg=g.id; saveStats(); setBg(g.id); showViewer();};
+$("vClose").onclick=()=>{ $("viewer").hidden=true; renderAlbum(); };
+$("albumBtn").onclick=e=>{e.stopPropagation(); openAlbum();};
+$("albumClose").onclick=closeAlbum;
+// swipe in viewer
+(()=>{let x0=null; const v=$("viewer");
+  v.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;},{passive:true});
+  v.addEventListener("touchend",e=>{ if(x0===null)return; const dx=e.changedTouches[0].clientX-x0; x0=null;
+    if(Math.abs(dx)>50&&unlockedList().length>1){ (dx<0?$("vNext"):$("vPrev")).click(); } },{passive:true});
+})();
 
 /* ---------- boot ---------- */
-idle(); renderLog(); drawGauge(); drawSpec();
+idle(); renderLog(); drawGauge(); drawSpec(); checkUnlocks(); updAlbumBtn(); if(stats.bg!=="g1")setBg(stats.bg);
 const redraw=()=>{ const cv=$("gauge"); cv.width=0; drawGauge(); drawSpec(); if(!$("result").hidden)drawTrend(lastResult?{samples:lastResult.samples,dur:lastResult.dur}:null); };
 window.addEventListener("resize",redraw);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redraw);
