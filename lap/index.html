@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ラップタイマー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../apple-touch-icon-v2.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ラップタイマー">
+<meta name="theme-color" content="#0c0e11">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,700;1,600;1,700&family=Dela+Gothic+One&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* Layout: sister app of モーターチェッカー — same pit-garage cockpit. Timer + camera gate up top, lap sheet and log below. */
+:root{
+  --bg:#0c0e11; --panel:#15191e; --panel2:#1c2128; --line:#2a3039;
+  --fg:#eef1f5; --muted:#8b95a3; --dim:#5a636f;
+  --accent:#ff4a1c; --hot:#ffcf33; --ok:#3fd99a; --best:#b58cff;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-num:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  background:transparent;min-height:100vh}
+html{background:var(--bg)}
+[hidden]{display:none!important}
+
+/* ---- お姉さん (shared with モーターチェッカー) ---- */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
+.bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:52% 0;display:block;opacity:0;transition:opacity .5s ease}
+.bg img.on{opacity:1}
+.bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(12,14,17,.55) 0%,rgba(12,14,17,0) 18%,rgba(12,14,17,0) 34%,rgba(12,14,17,.55) 52%,rgba(12,14,17,.8) 100%)}
+.wrap{transition:opacity .35s ease}
+.bg::after{transition:opacity .35s ease}
+body.peek .wrap{opacity:0;pointer-events:none}
+body.peek .bg::after{opacity:0}
+.peek-btn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;align-items:center;gap:6px;
+  font:inherit;font-weight:700;font-size:.82rem;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(12,14,17,.7);color:var(--fg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.peek-btn svg{width:18px;height:18px}
+body.peek .peek-btn{background:var(--accent);border-color:var(--accent)}
+body.running .peek-btn{display:none}
+.talk{position:fixed;left:16px;right:16px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:4;max-width:480px;margin:0 auto;
+  transform:translateY(12px);opacity:0;pointer-events:none;
+  background:rgba(12,14,17,.38);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:16px;padding:12px 16px;
+  font-weight:700;font-size:1rem;line-height:1.55;text-shadow:0 1px 4px rgba(0,0,0,.85);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  transition:opacity .2s ease, transform .25s cubic-bezier(.3,1.6,.5,1)}
+.talk::before{content:"";position:absolute;left:50%;top:-10px;margin-left:-10px;border:10px solid transparent;border-bottom-color:rgba(255,255,255,.35);border-top:0}
+.talk.show{opacity:1;transform:none}
+.talk b{color:var(--hot);white-space:nowrap}
+.tap-hint{position:fixed;left:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:4;font-size:.78rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none}
+body.peek .tap-hint{opacity:1}
+body:not(.peek) .talk{display:none}
+.bg img{transform-origin:50% 50%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.bg img.hop{animation:bhop .7s ease-out}
+.bg img.jump{animation:jump 1.4s ease-out}
+@keyframes bhop{0%{transform:scale(1.05)}25%{transform:scale(1.05) translateY(-16px) rotate(-.8deg)}50%{transform:scale(1.05) translateY(0) rotate(.6deg)}70%{transform:scale(1.05) translateY(-5px) rotate(-.3deg)}100%{transform:scale(1.05)}}
+@keyframes jump{0%{transform:scale(1.09)}15%{transform:scale(1.09) translateY(-34px) rotate(-1.2deg)}32%{transform:scale(1.09) translateY(0)}48%{transform:scale(1.09) translateY(-22px) rotate(1deg)}64%{transform:scale(1.09) translateY(0)}78%{transform:scale(1.09) translateY(-8px)}100%{transform:scale(1.09)}}
+.confetti{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translate3d(var(--dx),110vh,0) rotate(var(--rot))}}
+.best-tag{position:fixed;left:0;right:0;top:calc(12% + env(safe-area-inset-top,0px));z-index:4;text-align:center;pointer-events:none;
+  font-family:var(--f-num);font-style:italic;font-weight:700;font-size:clamp(2rem,11vw,3.2rem);letter-spacing:.06em;color:var(--hot);
+  text-shadow:0 3px 0 #b8860b,0 6px 20px rgba(0,0,0,.6);opacity:0}
+.best-tag.show{animation:tag 2.6s ease-out forwards}
+@keyframes tag{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.12)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+.album-btn{display:flex;align-items:center;gap:6px;font:inherit;font-family:var(--f-num);font-weight:700;font-size:.78rem;letter-spacing:.12em;
+  padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(12,14,17,.6);color:var(--fg);cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative}
+.album-btn svg{width:16px;height:16px}
+.album-btn .dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.album{position:fixed;inset:0;z-index:20;background:rgba(10,12,15,.96);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.album-in{max-width:560px;margin:0 auto;display:grid;gap:14px}
+.album-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.album-h h2{font-size:1.3rem}
+.album-count{font-family:var(--f-num);font-style:italic;font-weight:700;color:var(--hot);font-size:1rem;margin-left:6px}
+.x{font:inherit;font-size:1.4rem;line-height:1;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;flex:none}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:520px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tile{position:relative;aspect-ratio:2/3;max-width:100%;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel);padding:0;cursor:pointer;font:inherit;color:var(--fg);text-align:left}
+.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:20px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:.8rem;font-weight:700;display:grid;gap:2px}
+.tile .no{font-family:var(--f-num);font-style:italic;font-size:.7rem;color:var(--hot);letter-spacing:.1em}
+.tile.locked{cursor:default}
+.tile.locked img{filter:blur(16px) brightness(.35) saturate(.4);transform:scale(1.2)}
+.tile .lock{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;padding:12px;text-align:center}
+.tile .lock svg{width:30px;height:30px;color:var(--muted)}
+.tile .lname{display:grid;gap:0;margin-bottom:6px;font-family:var(--f-display);font-size:.95rem;line-height:1.3;color:var(--fg);text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.tile .lname .no{font-family:var(--f-num)}
+.tile .cond{font-size:.74rem;font-weight:700;color:var(--muted)}
+.tile .pbar{width:100px;max-width:100%;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.tile .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--hot))}
+.tile .pnum{font-family:var(--f-num);font-size:.72rem;color:var(--muted)}
+.tile .bgmark{position:absolute;top:8px;left:8px;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent);color:#fff}
+.tile .newmark{position:absolute;top:8px;right:8px;font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.7rem;padding:2px 8px;border-radius:4px;background:var(--hot);color:#111}
+.album-note{font-size:.8rem;color:var(--muted);margin:0}
+.viewer{position:fixed;inset:0;z-index:30;background:#000;display:grid;grid-template-rows:1fr auto}
+.viewer img{width:100%;height:100%;object-fit:contain;min-height:0}
+.viewer .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(10,12,15,.9)}
+.viewer .vname{flex:1;min-width:0;text-align:center;font-weight:700;font-size:.9rem}
+.viewer .vbtn{font:inherit;font-weight:700;font-size:.85rem;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;white-space:nowrap}
+.viewer .vbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.viewer .vx{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px}
+.hero-space{height:24vh;min-height:150px}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 84px;display:grid;gap:16px}
+
+/* header */
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:grid;gap:0}
+.eyebrow{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.72rem;letter-spacing:.28em;color:var(--accent);text-shadow:0 1px 6px rgba(0,0,0,.8)}
+h1{font-family:var(--f-display);font-weight:400;font-size:2rem;line-height:1.1;margin:0;letter-spacing:.04em;text-shadow:0 2px 12px rgba(0,0,0,.7),0 0 2px rgba(0,0,0,.8)}
+.cheer{display:flex;align-items:flex-end;gap:10px}
+.cheer img{width:84px;height:84px;border-radius:50%;flex:none;object-fit:cover;border:2px solid var(--accent);box-shadow:0 8px 20px -8px rgba(255,74,28,.6)}
+.bubble{position:relative;flex:1;min-width:0;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 14px;font-weight:700;font-size:.95rem;line-height:1.5;margin:0 0 10px}
+.bubble::before{content:"";position:absolute;left:-8px;bottom:14px;border:8px solid transparent;border-right-color:var(--fg);border-left:0}
+.bubble b{color:var(--accent);font-family:var(--f-num);font-style:italic;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.resbox:not([hidden]) .cheer img{animation:hop .6s ease-out}}
+@keyframes hop{0%{transform:translateY(20px);opacity:0}60%{transform:translateY(-6px);opacity:1}100%{transform:none}}
+
+/* cockpit */
+.cockpit{position:relative;background:linear-gradient(180deg,rgba(28,33,40,.78),rgba(21,25,30,.86));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:22px;padding:14px 14px 16px;display:grid;gap:12px;overflow:hidden}
+.cockpit::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--accent) 0 30%,transparent 30% 34%,var(--accent) 34% 40%,transparent 40%)}
+.modes{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.seg{display:flex;padding:3px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.seg button{font:inherit;font-weight:700;font-size:.8rem;padding:5px 14px;border-radius:999px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.state{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.75rem;letter-spacing:.18em;padding:3px 12px;border-radius:4px;transform:skewX(-12deg);border:1px solid var(--line);color:var(--muted)}
+.state.armed{border-color:var(--hot);color:var(--hot)}
+.state.run{border-color:var(--accent);color:var(--accent);background:rgba(255,74,28,.1)}
+.state.done{border-color:var(--ok);color:var(--ok);background:rgba(63,217,154,.1)}
+.clock{display:grid;justify-items:center;gap:2px;padding:4px 0 2px}
+.total{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:clamp(3.2rem,18vw,5rem);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;text-shadow:0 0 24px rgba(255,74,28,.25)}
+.total.done{color:var(--ok);text-shadow:0 0 24px rgba(63,217,154,.25)}
+.unit{font-family:var(--f-num);font-weight:700;font-size:.75rem;letter-spacing:.3em;color:var(--muted)}
+.hud{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hud div{display:grid;gap:0;padding:8px 10px 6px;border-radius:10px;background:var(--panel2);border-top:2px solid var(--line)}
+.hud .k{font-family:var(--f-num);font-size:.66rem;font-weight:700;letter-spacing:.18em;color:var(--muted)}
+.hud b{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:clamp(1.05rem,5.4vw,1.4rem);line-height:1.2;font-variant-numeric:tabular-nums}
+.hud .now{border-top-color:var(--accent)}
+.hud .bst{border-top-color:var(--best)} .hud .bst b{color:var(--best)}
+.dots{display:flex;gap:4px}
+.dots i{flex:1;height:5px;border-radius:2px;background:var(--line);transform:skewX(-20deg)}
+.dots i.done{background:var(--fg)} .dots i.now{background:var(--accent)} .dots i.goal{background:var(--ok)}
+
+/* camera gate */
+.cam{display:grid;gap:8px}
+.vbox{position:relative;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--line);touch-action:none;max-width:100%}
+.vbox video{display:block;width:100%;height:auto;min-height:120px}
+.vbox canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.vbox .flash{position:absolute;inset:0;background:var(--accent);opacity:0;pointer-events:none}
+.vbox .flash.go{animation:gflash .35s ease-out}
+@keyframes gflash{from{opacity:.45}to{opacity:0}}
+.vbox .ph{position:absolute;inset:0;display:grid;place-content:center;gap:6px;justify-items:center;text-align:center;padding:16px;color:var(--muted);font-size:.85rem}
+.vbox .ph svg{width:36px;height:36px}
+.meter{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-family:var(--f-num);font-size:.7rem;letter-spacing:.14em;color:var(--muted)}
+.mbar{position:relative;height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}
+.mbar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--ok);transition:width .05s linear}
+.mbar i.hit{background:var(--accent)}
+.mbar::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--hot)}
+.camhint{font-size:.8rem;color:var(--muted);margin:0}
+
+/* buttons */
+.start{position:relative;font:inherit;border:0;cursor:pointer;width:100%;padding:18px 16px;border-radius:14px;overflow:hidden;
+  background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;
+  font-family:var(--f-num);font-style:italic;font-weight:700;font-size:1.35rem;letter-spacing:.08em;
+  box-shadow:0 8px 24px -10px rgba(255,74,28,.7), inset 0 -3px 0 rgba(0,0,0,.2);touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.start.big{min-height:clamp(120px,22vh,190px);font-size:2.2rem;flex-direction:column;gap:2px}
+.start .jp{font-family:var(--f-body);font-style:normal;font-weight:700;font-size:.85rem;letter-spacing:.04em;opacity:.9}
+.start.armed{background:#2a2f37;box-shadow:inset 0 0 0 1px var(--hot);color:var(--hot)}
+.start.armed .bgstripe{position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,207,51,.12) 0 10px,transparent 10px 20px);animation:stripe 1s linear infinite}
+@keyframes stripe{to{background-position:28px 0}}
+.start.run{background:#2a2f37;box-shadow:inset 0 0 0 1px var(--line)}
+.start.goal{background:var(--ok);color:#0c0e11}
+.start.done{background:var(--fg);color:var(--bg)}
+.start>span{position:relative}
+.start:active{transform:translateY(1px)}
+.start.pulse{animation:pulse .25s}
+@keyframes pulse{from{filter:brightness(1.4)}to{filter:none}}
+.start:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+.row{display:flex;gap:8px}
+.sbtn{flex:1;font:inherit;font-weight:700;font-size:.85rem;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;white-space:nowrap}
+.sbtn:disabled{opacity:.35;cursor:default}
+.status{font-size:.82rem;color:var(--muted);text-align:center;min-height:1.3em;margin:0}
+
+/* cards */
+.card{background:rgba(21,25,30,.82);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.05rem;letter-spacing:.06em}
+h2 .en{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.7rem;letter-spacing:.24em;color:var(--accent);margin-right:8px;vertical-align:2px}
+.meta{font-family:var(--f-num);font-size:.75rem;color:var(--muted)}
+.hint{font-size:.8rem;color:var(--muted);margin:0}
+.card.result{border-color:rgba(255,74,28,.55);box-shadow:0 0 0 1px rgba(255,74,28,.15), 0 12px 40px -20px rgba(255,74,28,.5)}
+.resbox{display:grid;gap:12px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{display:grid;gap:0;padding:10px 10px 8px;border-radius:10px;background:var(--panel2);border-top:2px solid var(--line)}
+.stat .k{font-size:.68rem;color:var(--muted);font-weight:700;letter-spacing:.06em}
+.stat b{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:clamp(1.1rem,5.6vw,1.5rem);line-height:1.2;font-variant-numeric:tabular-nums}
+.stat small{font-family:var(--f-num);font-size:.65rem;color:var(--dim);letter-spacing:.15em}
+.stat.tot{border-top-color:var(--ok)} .stat.tot b{color:var(--ok)}
+.stat.bl{border-top-color:var(--best)} .stat.bl b{color:var(--best)}
+
+.laps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.laps li{display:grid;grid-template-columns:4.2em 1fr auto;gap:2px 10px;align-items:baseline}
+.laps .n{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.8rem;color:var(--muted);letter-spacing:.06em}
+.laps .t{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:1.25rem;font-variant-numeric:tabular-nums}
+.laps .d{font-family:var(--f-num);font-size:.78rem;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.laps .bar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--panel2);overflow:hidden}
+.laps .bar i{display:block;height:100%;background:var(--dim)}
+.laps li.best .t,.laps li.best .n{color:var(--best)}
+.laps li.best .bar i{background:var(--best)}
+.laps li.live .t{color:var(--accent)}
+.laps li.live .bar i{background:var(--accent)}
+
+.save{display:flex;gap:8px}
+.save input{flex:1;min-width:0}
+input[type=text],input[type=number],select{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{font:inherit;font-weight:700;padding:10px 18px;border-radius:10px;border:0;background:var(--fg);color:var(--bg);cursor:pointer;white-space:nowrap}
+.btn:disabled{opacity:.3;cursor:default}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.log li{display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 10px;align-items:center}
+.log .rank{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.85rem;color:var(--dim);min-width:1.6em}
+.log li.p1 .rank{color:var(--hot)}
+.log .name{min-width:0;overflow-wrap:anywhere;font-weight:500}
+.log .val{font-family:var(--f-num);font-style:italic;font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.log .val small{font-size:.65rem;color:var(--muted);margin-left:3px;font-style:normal}
+.log .del{border:0;background:none;color:var(--dim);cursor:pointer;font-size:1.1rem;padding:0 4px}
+.log .when{grid-column:2/-1;font-size:.72rem;color:var(--muted);font-family:var(--f-num)}
+.log .grp{grid-column:1/-1;font-family:var(--f-num);font-style:italic;font-weight:700;font-size:.72rem;letter-spacing:.2em;color:var(--accent);margin-top:4px}
+.empty{font-size:.85rem;color:var(--muted);margin:0}
+
+details summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font-family:var(--f-num);font-size:1.3rem;color:var(--muted)}
+details[open] summary::after{content:"−"}
+.fields{display:grid;gap:12px;margin-top:12px}
+.field{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--fg)}
+.check input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.steps{margin:0;padding-left:1.3em;display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
+.steps b{color:var(--fg)}
+.sister{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--fg);text-decoration:none;font-weight:700}
+.sister span{font-family:var(--f-num);font-style:italic;color:var(--accent);letter-spacing:.1em}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head><body>
+<div class="bg" aria-hidden="true"><img id="bgA" class="on" src="../rq/g1.jpg" alt=""><img id="bgB" alt=""></div>
+<button class="peek-btn" id="peekBtn" type="button" aria-pressed="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span id="peekTxt">お姉さんと話す</span>
+</button>
+<div class="best-tag" id="bestTag" aria-hidden="true">NEW RECORD!</div>
+<div class="talk" id="talk" role="status" aria-live="polite"></div>
+<p class="tap-hint">お姉さんをタップしてね</p>
+<div class="album" id="album" hidden role="dialog" aria-modal="true" aria-label="お姉さんアルバム">
+  <div class="album-in">
+    <div class="album-h"><h2><span class="en">ALBUM</span>お姉さんアルバム<span class="album-count" id="albumCount2"></span></h2><button class="x" id="albumClose" type="button" aria-label="閉じる">×</button></div>
+    <p class="album-note">完走回数や周回数でお姉さんがアンロックされます。モーターチェッカーで集めたお姉さんも、ここで見られます。</p>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true">
+  <img id="vImg" alt="">
+  <button class="x vx" id="vClose" type="button" aria-label="閉じる">×</button>
+  <div class="bar">
+    <button class="vbtn" id="vPrev" type="button" aria-label="前へ">←</button>
+    <span class="vname" id="vName"></span>
+    <button class="vbtn primary" id="vSet" type="button">背景にする</button>
+    <button class="vbtn" id="vNext" type="button" aria-label="次へ">→</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">MINI 4WD LAP TIMER</span>
+      <h1>ラップタイマー</h1>
+    </div>
+    <button class="album-btn" id="albumBtn" type="button" aria-label="アルバムを開く">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+      <span id="albumCount">1/34</span><span class="dot" id="albumDot" hidden></span>
+    </button>
+  </header>
+  <div class="hero-space" aria-hidden="true"></div>
+
+  <section class="cockpit" aria-label="ラップタイマー">
+    <div class="modes">
+      <div class="seg" role="group" aria-label="計測方法">
+        <button type="button" id="mCam" aria-pressed="true">カメラ</button>
+        <button type="button" id="mTap" aria-pressed="false">手動タップ</button>
+      </div>
+      <span class="state" id="state">STANDBY</span>
+    </div>
+
+    <div class="clock">
+      <div class="total" id="total">0.000</div>
+      <div class="unit">TOTAL · SEC</div>
+    </div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="hud">
+      <div><span class="k">LAP</span><b id="lapNo">0/3</b></div>
+      <div class="now"><span class="k">NOW</span><b id="lapNow">--</b></div>
+      <div class="bst"><span class="k">BEST</span><b id="best">--</b></div>
+    </div>
+
+    <div class="cam" id="cam">
+      <div class="vbox" id="vbox">
+        <video id="vid" playsinline muted autoplay></video>
+        <canvas id="ov" aria-label="ゲート線。2回タップで引き直せます"></canvas>
+        <div class="flash" id="gflash"></div>
+        <div class="ph" id="ph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>スマホをコース脇に固定して、<br>下のボタンでカメラを起動してください。</span>
+        </div>
+      </div>
+      <div class="meter" id="meterRow" hidden><span>MOTION</span><span class="mbar"><i id="mbar"></i></span><span id="mfps">--fps</span></div>
+      <p class="camhint" id="camhint" hidden>映像を2回タップして、マシンが横切るゲート線を引いてください。1レーンだけを横切るように引くと誤検知が減ります。</p>
+    </div>
+
+    <button class="start" id="go" type="button"><span class="bgstripe" aria-hidden="true"></span><span id="goEn">CAMERA ON</span><span class="jp" id="goJp">カメラを起動</span></button>
+    <div class="row">
+      <button class="sbtn" id="undo" type="button" disabled>1つ取り消す</button>
+      <button class="sbtn" id="reset" type="button">リセット</button>
+      <button class="sbtn" id="camOff" type="button" hidden>カメラOFF</button>
+    </div>
+    <p class="status" id="status" aria-live="polite">カメラでマシンの通過を自動で計測します。</p>
+  </section>
+
+  <section class="card" id="lapCard">
+    <div class="card-h"><h2><span class="en">LAPS</span>ラップ</h2><span class="meta" id="lapMeta"></span></div>
+    <div class="resbox" id="resbox" hidden>
+      <div class="cheer"><img src="../rq-face.jpg" alt="レースクイーンのお姉さん"><p class="bubble" id="cheer">完走おめでとう！</p></div>
+      <div class="stats">
+        <div class="stat tot"><span class="k">ゴールタイム</span><b id="rTotal">--</b><small>SEC</small></div>
+        <div class="stat bl"><span class="k">ベストラップ</span><b id="rBest">--</b><small>SEC</small></div>
+        <div class="stat"><span class="k">平均ラップ</span><b id="rAvg">--</b><small id="rAvgU">SEC</small></div>
+      </div>
+    </div>
+    <ol class="laps" id="laps"></ol>
+    <p class="empty" id="lapsEmpty">スタートすると、ここに1周ごとのタイムが並びます。</p>
+    <p class="hint" id="resNote" hidden></p>
+    <div class="save" id="saveRow" hidden>
+      <input id="name" type="text" placeholder="マシン名・モーター・電池など" maxlength="40">
+      <button class="btn" id="saveBtn" type="button">保存</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2><span class="en">LOG</span>記録</h2><span class="meta">周回数ごと・速い順</span></div>
+    <ul class="log" id="log"></ul>
+    <p class="empty" id="logEmpty">まだ記録がありません。ゴールしたら、名前をつけて保存できます。</p>
+  </section>
+
+  <section class="card">
+    <details id="setup">
+      <summary><h2><span class="en">SETUP</span>設定と測り方</h2></summary>
+      <div class="fields">
+        <ol class="steps">
+          <li>スマホを<b>コース脇に固定</b>して、カメラにスタート/ゴールラインが映るようにします。</li>
+          <li>「カメラを起動」を押してカメラを許可し、映像を<b>2回タップ</b>してゲート線を引きます。</li>
+          <li>「READY」を押すと待機状態に。マシンが線を横切った瞬間に<b>自動でスタート</b>します。</li>
+          <li>横切るたびにラップを記録し、設定した周回数で<b>自動でゴール</b>します。</li>
+          <li>マシン以外が動くと反応するので、計測中はゲート線の近くに手を入れないでください。</li>
+        </ol>
+        <div class="two">
+          <label class="field" for="goalLaps">ゴールまでの周回数
+            <select id="goalLaps">
+              <option value="1">1周</option>
+              <option value="2">2周</option>
+              <option value="3" selected>3周（公式レース）</option>
+              <option value="5">5周</option>
+              <option value="10">10周</option>
+              <option value="0">無制限</option>
+            </select>
+          </label>
+          <label class="field" for="lapLen">1周の距離（m）
+            <input id="lapLen" type="number" inputmode="decimal" min="0" step="0.1" placeholder="例：66">
+          </label>
+        </div>
+        <label class="field" for="sens">カメラの感度 <span id="sensV" style="color:var(--fg)">5</span>
+          <input id="sens" type="range" min="1" max="10" step="1" value="5">
+        </label>
+        <p class="hint">マシンが通ってもMOTIONメーターが黄色い線を超えないときは感度を上げ、何もないのに反応するときは下げてください。</p>
+        <label class="field" for="gap">最短ラップ（秒）　これより短い間隔の反応は無視します
+          <input id="gap" type="number" inputmode="decimal" min="0.3" step="0.1" value="1.5">
+        </label>
+        <label class="check"><input id="beep" type="checkbox" checked> 通過時に音を鳴らす</label>
+        <label class="check"><input id="wake" type="checkbox" checked> 計測中は画面を消さない</label>
+        <a class="sister" href="../">モーターチェッカーで回転数を測る<span>MOTOR →</span></a>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const KEY="m4wd-lap-history", SKEY="m4wd-lap-stats", PKEY="m4wd-lap-prefs";
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const now=()=>performance.now();
+
+/* ---------- format ---------- */
+function fmt(ms){
+  if(ms==null||!isFinite(ms))return "--";
+  const s=ms/1000; if(s<60)return s.toFixed(3);
+  const m=Math.floor(s/60), r=s-m*60; return m+":"+(r<10?"0":"")+r.toFixed(3);
+}
+const kmh=(ms,len)=>len>0&&ms>0?(len/(ms/1000))*3.6:null;
+
+/* ---------- prefs ---------- */
+let prefs={mode:"cam",goal:3,len:0,sens:5,gap:1.5,beep:true,wake:true,gate:null};
+try{Object.assign(prefs,JSON.parse(localStorage.getItem(PKEY))||{});}catch(e){}
+function savePrefs(){try{localStorage.setItem(PKEY,JSON.stringify(prefs));}catch(e){}}
+$("goalLaps").value=String(prefs.goal); $("lapLen").value=prefs.len||""; $("sens").value=prefs.sens; $("sensV").textContent=prefs.sens;
+$("gap").value=prefs.gap; $("beep").checked=prefs.beep; $("wake").checked=prefs.wake;
+const thOf=s=>0.25*Math.pow(0.72,s-1);  // fraction of gate pixels that must change
+
+/* ---------- race state ---------- */
+// phase: idle | armed | run | done
+let phase="idle", t0=null, marks=[], src="cam", raf=0, lastTap=0;
+const laps=()=>{const o=[];let p=t0;for(const m of marks){o.push(m-p);p=m;}return o;};
+const bestIdx=L=>{let b=-1;L.forEach((x,i)=>{if(b<0||x<L[b])b=i;});return b;};
+const goal=()=>prefs.goal;
+
+function setPhase(p){
+  phase=p; document.body.classList.toggle("running",p==="run"||p==="armed");
+  if(p==="run"||p==="armed")wakeOn(); else wakeOff();
+  if((p==="run")&&!raf)raf=requestAnimationFrame(loop);
+  renderAll();
+}
+function loop(){
+  raf=0; renderClock();
+  if(phase==="run")raf=requestAnimationFrame(loop);
+}
+function renderClock(){
+  const L=laps();
+  const tNow=t0==null?0:(phase==="done"?marks[marks.length-1]:now())-t0;
+  $("total").textContent=fmt(tNow); $("total").classList.toggle("done",phase==="done");
+  const run=phase==="run", g=goal(), n=L.length;
+  $("lapNo").textContent=g?Math.min(n+(run?1:0),g)+"/"+g:String(n+(run?1:0));
+  const lt=run?now()-(marks.length?marks[marks.length-1]:t0):null;
+  $("lapNow").textContent=lt==null?"--":fmt(lt);
+  const live=document.getElementById("liveT"); if(live&&lt!=null)live.textContent=fmt(lt);
+  const bi=bestIdx(L); $("best").textContent=bi>=0?fmt(L[bi]):"--";
+}
+function renderAll(){
+  renderClock();
+  const L=laps(), g=goal(), n=L.length, run=phase==="run";
+  // dots
+  const dn=g||Math.max(n+1,3), d=$("dots");
+  if(d.childElementCount!==dn){d.innerHTML="";for(let i=0;i<dn;i++)d.append(document.createElement("i"));}
+  [...d.children].forEach((el,i)=>{el.className=i<n?(phase==="done"&&i===n-1?"goal":"done"):(run&&i===n?"now":"");});
+  // state chip
+  const st=$("state");
+  st.textContent={idle:"STANDBY",armed:"READY",run:"RACING",done:"FINISH"}[phase];
+  st.className="state"+({armed:" armed",run:" run",done:" done"}[phase]||"");
+  // main button
+  const go=$("go"), cam=prefs.mode==="cam";
+  go.className="start"+(cam?"":" big");
+  let en="",jp="";
+  if(cam){
+    if(!stream){en="CAMERA ON";jp="カメラを起動";}
+    else if(phase==="idle"){en="READY";jp="待機して自動スタート";}
+    else if(phase==="armed"){en="WAITING";jp="マシンの通過を待っています（タップで中止）";go.classList.add("armed");}
+    else if(phase==="run"){en="STOP";jp="計測を中止";go.classList.add("run");}
+    else {en="NEXT RACE";jp="次の走行を待機";go.classList.add("done");}
+  }else{
+    if(phase==="idle"||phase==="armed"){en="START";jp="タップでスタート（スペースキーでも可）";}
+    else if(phase==="run"){const last=g&&n===g-1;en=last?"GOAL":"LAP";jp=last?"ファイナルラップ・通過でタップ":(n+1)+"周目を走行中・通過でタップ";if(last)go.classList.add("goal");}
+    else {en="FINISH";jp="タップで次の走行";go.classList.add("done");}
+  }
+  $("goEn").textContent=en; $("goJp").textContent=jp;
+  $("undo").disabled=!(phase==="run"||phase==="done");
+  $("camOff").hidden=!(cam&&stream);
+  $("cam").hidden=!cam;
+  $("mCam").setAttribute("aria-pressed",cam); $("mTap").setAttribute("aria-pressed",!cam);
+  renderLaps();
+}
+function renderLaps(){
+  const L=laps(), ul=$("laps"); ul.innerHTML="";
+  const run=phase==="run";
+  $("lapsEmpty").hidden=L.length>0||run;
+  const bi=bestIdx(L), mx=Math.max(...L,1);
+  L.forEach((x,i)=>{
+    const li=document.createElement("li"); if(i===bi&&L.length>1)li.className="best";
+    const diff=bi>=0&&i!==bi?"+"+((x-L[bi])/1000).toFixed(3):(L.length>1?"BEST":"");
+    li.innerHTML='<span class="n">LAP '+(i+1)+'</span><span class="t">'+fmt(x)+'</span><span class="d">'+diff+'</span><div class="bar"><i style="width:'+(x/mx*100)+'%"></i></div>';
+    ul.append(li);
+  });
+  if(run){
+    const li=document.createElement("li");li.className="live";
+    li.innerHTML='<span class="n">LAP '+(L.length+1)+'</span><span class="t" id="liveT">--</span><span class="d">走行中</span>';
+    ul.append(li);
+  }
+  $("lapMeta").textContent=t0!=null?(src==="cam"?"カメラ計測":"手動計測"):"";
+  const done=phase==="done"&&L.length>0;
+  $("resbox").hidden=!done; $("saveRow").hidden=!done||saved; $("resNote").hidden=!done;
+  if(done){
+    const tot=marks[marks.length-1]-t0, avg=tot/L.length;
+    $("rTotal").textContent=fmt(tot); $("rBest").textContent=fmt(L[bi]); $("rAvg").textContent=fmt(avg);
+    const v=kmh(tot,prefs.len*L.length);
+    $("resNote").textContent=(v?"平均速度 "+v.toFixed(1)+" km/h（1周 "+prefs.len+" m）。":"1周の距離を設定すると平均速度も出ます。")
+      +(src==="cam"&&fpsSeen?" カメラ約"+fpsSeen+"fps・誤差±"+(1/fpsSeen).toFixed(3)+"秒。":"");
+  }
+}
+
+/* ---------- race actions ---------- */
+let saved=false;
+function startRace(at,from){
+  t0=at; marks=[]; src=from; saved=false; lastEvent=at;
+  beep(1320,.18); flashGate(); setPhase("run");
+  status(from==="cam"?"スタート！マシンの通過を検知しました。":"スタート！");
+}
+function lapAt(at){
+  marks.push(at); lastEvent=at;
+  const L=laps(), g=goal();
+  flashGate();
+  if(g&&L.length>=g){finish();return;}
+  beep(990,.09); status("LAP "+L.length+"："+fmt(L[L.length-1])+" 秒");
+  renderAll();
+}
+function finish(){
+  if(t0==null||!marks.length)return;
+  beep(1320,.12); setTimeout(()=>beep(1760,.3),140);
+  setPhase("done");
+  const L=laps(), tot=marks[marks.length-1]-t0;
+  status("ゴール！ トータル "+fmt(tot)+" 秒");
+  // stats & record check
+  const key=String(L.length), prev=stats.bestBy[key];
+  const isPB=prev!=null&&tot<prev;
+  if(prev==null||tot<prev)stats.bestBy[key]=tot;
+  stats.runs++; stats.laps+=L.length; if(src==="cam")stats.cam++; if(isPB)stats.pb++;
+  saveStats();
+  const bi=bestIdx(L), avg=tot/L.length, spread=(avg-L[bi])/avg;
+  const msg= isPB?"記録更新！自己ベストだよ！": L.length>1&&spread<0.02?"すごく安定した走り！": L.length>1&&bi===L.length-1?"最後がベストラップ！ノッてるね！":"完走おめでとう！";
+  const c=$("cheer"); c.textContent=msg+" "; const b=document.createElement("b"); b.textContent=fmt(tot)+" 秒"; c.append(b);
+  const fresh=checkUnlocks();
+  if(isPB||fresh.length)setTimeout(()=>celebrate(isPB?tot:0,fresh,L.length),900);
+  setTimeout(()=>$("lapCard").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"nearest"}),300);
+}
+function resetRace(){
+  t0=null; marks=[]; saved=false;
+  if(raf){cancelAnimationFrame(raf);raf=0;}
+  setPhase("idle"); status(prefs.mode==="cam"?(stream?"「READY」を押すと待機します。":"カメラでマシンの通過を自動で計測します。"):"ボタンを押してスタートします。");
+}
+function undo(){
+  if(phase==="done"){
+    marks.pop(); stats.runs=Math.max(0,stats.runs-1); stats.laps=Math.max(0,stats.laps-laps().length-1);
+    if(src==="cam")stats.cam=Math.max(0,stats.cam-1); saveStats();
+    setPhase("run"); status("ゴールを取り消しました。"); return;
+  }
+  if(phase==="run"){
+    if(marks.length){marks.pop();status("最後のラップを取り消しました。");renderAll();}
+    else{resetRace();status("スタートを取り消しました。");}
+  }
+}
+function status(t){$("status").textContent=t;}
+
+/* manual tap */
+function tapManual(at){
+  if(at-lastTap<250)return; lastTap=at;
+  const go=$("go"); go.classList.remove("pulse"); void go.offsetWidth; go.classList.add("pulse");
+  if(phase==="done"){resetRace();return;}
+  if(phase!=="run"){unlockAudio();startRace(at,"tap");return;}
+  lapAt(at);
+}
+$("go").addEventListener("pointerdown",e=>{
+  if(prefs.mode!=="tap"||e.button>0)return;
+  const at=e.timeStamp>0&&Math.abs(e.timeStamp-now())<1000?e.timeStamp:now();
+  tapManual(at);
+});
+$("go").addEventListener("click",e=>{
+  if(prefs.mode==="tap"){ if(e.detail===0)tapManual(now()); return; }
+  unlockAudio();
+  if(!stream){startCam();return;}
+  if(phase==="idle"){arm();return;}
+  if(phase==="armed"){setPhase("idle");status("待機を中止しました。");return;}
+  if(phase==="run"){resetRace();status("計測を中止しました。");return;}
+  if(phase==="done"){t0=null;marks=[];arm();}
+});
+document.addEventListener("keydown",e=>{
+  if(e.code!=="Space"||e.repeat||prefs.mode!=="tap")return;
+  const tg=e.target; if(tg&&/INPUT|SELECT|TEXTAREA|BUTTON/.test(tg.tagName))return;
+  if(!$("album").hidden||!$("viewer").hidden)return;
+  e.preventDefault(); tapManual(now());
+});
+$("undo").onclick=undo;
+$("reset").onclick=resetRace;
+function setMode(m){
+  if(phase==="run"||phase==="armed")resetRace();
+  prefs.mode=m; savePrefs();
+  if(m==="tap")stopCam();
+  resetRace();
+}
+$("mCam").onclick=()=>setMode("cam");
+$("mTap").onclick=()=>setMode("tap");
+
+/* ---------- sound & wake lock ---------- */
+let ac=null;
+function unlockAudio(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==="suspended")ac.resume();}catch(e){}}
+function beep(freq,dur){
+  if(!prefs.beep||!ac)return;
+  try{
+    const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+    o.type="square";o.frequency.value=freq;o.connect(g);g.connect(ac.destination);
+    g.gain.setValueAtTime(.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.start(t);o.stop(t+dur+.02);
+  }catch(e){}
+}
+let lock=null;
+async function wakeOn(){if(!prefs.wake||lock||!navigator.wakeLock)return;try{lock=await navigator.wakeLock.request("screen");lock.addEventListener("release",()=>{lock=null;});}catch(e){lock=null;}}
+function wakeOff(){try{if(lock)lock.release();}catch(e){}lock=null;}
+
+/* ---------- camera gate ---------- */
+const vid=$("vid"), ov=$("ov");
+const work=document.createElement("canvas"), wctx=work.getContext("2d",{willReadFrequently:true});
+let stream=null, gate=prefs.gate||{a:[.5,.12],b:[.5,.88]}, pend=null;
+let idx=null, bg=null, WW=0, HH=0, prevScore=0, prevT=0, armedAt=0, lastEvent=-1e9, below=true;
+let timeKey=null, fpsSeen=0, fpsFrames=0, fpsT=0, procHandle=0;
+
+async function startCam(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    status("このブラウザではカメラが使えません。SafariかChromeで開いてください。");return;
+  }
+  status("カメラを起動しています…");
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},frameRate:{ideal:60},width:{ideal:1280},height:{ideal:720}}});
+  }catch(err){
+    stream=null;
+    status(err&&err.name==="NotAllowedError"
+      ?"カメラが許可されませんでした。ブラウザの設定でこのページのカメラを許可してください。"
+      :"カメラを開けませんでした。ほかのアプリがカメラを使っていないか確認してください。");
+    renderAll(); return;
+  }
+  vid.srcObject=stream;
+  try{await vid.play();}catch(e){}
+  $("ph").hidden=true; $("meterRow").hidden=false; $("camhint").hidden=false;
+  const tr=stream.getVideoTracks()[0], s=tr&&tr.getSettings?tr.getSettings():{};
+  if(s.frameRate)fpsSeen=Math.round(s.frameRate);
+  bg=null; idx=null; timeKey=null;
+  startProcessing();
+  status("映像を2回タップしてゲート線を引き、「READY」を押してください。");
+  renderAll(); requestAnimationFrame(drawOv);
+}
+function stopCam(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());}
+  stream=null; vid.srcObject=null; stopProcessing();
+  $("ph").hidden=false; $("meterRow").hidden=true; $("camhint").hidden=true;
+  const g=ov.getContext("2d"); g.clearRect(0,0,ov.width,ov.height);
+  if(phase==="armed"||phase==="run")resetRace(); else renderAll();
+}
+$("camOff").onclick=()=>{stopCam();status("カメラを止めました。");};
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden&&stream){stopCam();status("画面を離れたのでカメラを止めました。もう一度起動してください。");}
+});
+
+function arm(){
+  bg=null; armedAt=now(); below=true; lastEvent=-1e9;
+  setPhase("armed"); status("待機中。マシンがゲート線を横切るとスタートします。");
+}
+
+function drawOv(){
+  if(!stream)return;
+  const W=ov.clientWidth,H=ov.clientHeight; if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1; ov.width=W*dpr; ov.height=H*dpr;
+  const g=ov.getContext("2d"); g.scale(dpr,dpr); g.clearRect(0,0,W,H);
+  const P=p=>[p[0]*W,p[1]*H], a=P(gate.a), b=P(gate.b);
+  g.lineCap="round";
+  g.strokeStyle="rgba(0,0,0,.55)"; g.lineWidth=8; g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.stroke();
+  // checker stripe gate
+  const len=Math.hypot(b[0]-a[0],b[1]-a[1]), seg=10, n=Math.max(1,Math.floor(len/seg));
+  g.lineWidth=4; g.lineCap="butt";
+  for(let i=0;i<n;i++){
+    const s=i/n,e=(i+1)/n; g.strokeStyle=i%2?"#ffffff":(pend?"#5a636f":"#ff4a1c");
+    g.beginPath(); g.moveTo(a[0]+(b[0]-a[0])*s,a[1]+(b[1]-a[1])*s); g.lineTo(a[0]+(b[0]-a[0])*e,a[1]+(b[1]-a[1])*e); g.stroke();
+  }
+  for(const p of [a,b]){g.fillStyle="#fff";g.beginPath();g.arc(p[0],p[1],7,0,7);g.fill();g.fillStyle="#ff4a1c";g.beginPath();g.arc(p[0],p[1],4,0,7);g.fill();}
+  if(pend){const p=P(pend);g.fillStyle="#3fd99a";g.beginPath();g.arc(p[0],p[1],9,0,7);g.fill();}
+}
+ov.addEventListener("pointerdown",e=>{
+  if(!stream||phase==="run")return;
+  const r=ov.getBoundingClientRect(), p=[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height];
+  if(!pend){pend=p;$("camhint").textContent="もう一方の端をタップしてください。";}
+  else{
+    if(Math.hypot(p[0]-pend[0],p[1]-pend[1])<.04)return;
+    gate={a:pend,b:p}; pend=null; prefs.gate=gate; savePrefs(); idx=null; bg=null;
+    $("camhint").textContent="ゲート線を引きました。引き直すときは、もう一度2回タップします。";
+  }
+  drawOv();
+});
+window.addEventListener("resize",()=>{drawOv();});
+vid.addEventListener("loadedmetadata",()=>requestAnimationFrame(drawOv));
+vid.addEventListener("resize",()=>{idx=null;bg=null;requestAnimationFrame(drawOv);});
+
+function prepare(){
+  const vw=vid.videoWidth, vh=vid.videoHeight; if(!vw||!vh)return false;
+  WW=Math.min(320,vw); HH=Math.max(1,Math.round(WW*vh/vw)); work.width=WW; work.height=HH;
+  const ax=gate.a[0]*WW, ay=gate.a[1]*HH, bx=gate.b[0]*WW, by=gate.b[1]*HH;
+  const len=Math.hypot(bx-ax,by-ay)||1, n=Math.max(12,Math.round(len));
+  const nx=-(by-ay)/len, ny=(bx-ax)/len, out=[];
+  for(let i=0;i<=n;i++){
+    const x=ax+(bx-ax)*i/n, y=ay+(by-ay)*i/n;
+    for(let k=-2;k<=2;k++){
+      const px=Math.min(WW-1,Math.max(0,Math.round(x+nx*k))), py=Math.min(HH-1,Math.max(0,Math.round(y+ny*k)));
+      out.push((py*WW+px)*4);
+    }
+  }
+  idx=Int32Array.from(out); bg=null; return true;
+}
+// fraction of gate pixels that differ from the learned background (brightness-normalised against flicker)
+function score(th){
+  wctx.drawImage(vid,0,0,WW,HH);
+  const d=wctx.getImageData(0,0,WW,HH).data, n=idx.length, cur=new Float32Array(n);
+  let mc=0; for(let i=0;i<n;i++){const j=idx[i];cur[i]=d[j]*.299+d[j+1]*.587+d[j+2]*.114;mc+=cur[i];} mc/=n;
+  if(!bg){bg=cur;return 0;}
+  let mb=0; for(let i=0;i<n;i++)mb+=bg[i]; mb/=n;
+  const off=mc-mb; let c=0;
+  for(let i=0;i<n;i++) if(Math.abs(cur[i]-bg[i]-off)>24)c++;
+  const s=c/n;
+  if(s<th*.5) for(let i=0;i<n;i++) bg[i]=bg[i]*.85+cur[i]*.15;
+  return s;
+}
+function onFrame(t){
+  if(!stream)return;
+  if(!idx&&!prepare())return;
+  const th=thOf(prefs.sens), s=score(th);
+  // fps
+  fpsFrames++; if(!fpsT)fpsT=t; if(t-fpsT>=1000){fpsSeen=Math.round(fpsFrames*1000/(t-fpsT)); $("mfps").textContent=fpsSeen+"fps"; fpsFrames=0; fpsT=t;}
+  // meter
+  const m=$("mbar"); m.style.width=Math.min(100,s/(th*2)*100)+"%"; m.classList.toggle("hit",s>=th);
+  // detection
+  const gap=Math.max(.3,prefs.gap)*1000;
+  if(s>=th && below){
+    let tt=t; if(prevScore<th&&s>prevScore&&prevT) tt=prevT+(th-prevScore)/(s-prevScore)*(t-prevT);
+    below=false;
+    if(phase==="armed" && t-armedAt>600){ startRace(tt,"cam"); }
+    else if(phase==="run" && src==="cam" && tt-lastEvent>=gap){ lapAt(tt); }
+  }else if(s<th*.5) below=true;
+  prevScore=s; prevT=t;
+}
+function startProcessing(){
+  stopProcessing();
+  if("requestVideoFrameCallback" in vid){
+    const cb=(nowTs,meta)=>{
+      if(!stream)return;
+      if(timeKey==null)timeKey=(meta.captureTime>0&&Math.abs(meta.captureTime-now())<5000)?"captureTime":"now";
+      onFrame(timeKey==="captureTime"?meta.captureTime:nowTs);
+      procHandle=vid.requestVideoFrameCallback(cb);
+    };
+    procHandle=vid.requestVideoFrameCallback(cb);
+  }else{
+    const cb=ts=>{ if(!stream)return; onFrame(ts); procHandle=requestAnimationFrame(cb); };
+    procHandle=requestAnimationFrame(cb);
+  }
+}
+function stopProcessing(){
+  if(!procHandle)return;
+  try{ if(vid.cancelVideoFrameCallback)vid.cancelVideoFrameCallback(procHandle); cancelAnimationFrame(procHandle);}catch(e){}
+  procHandle=0;
+}
+function flashGate(){const f=$("gflash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");}
+
+/* ---------- settings ---------- */
+$("goalLaps").onchange=e=>{prefs.goal=+e.target.value;savePrefs();
+  if(phase==="run"&&prefs.goal&&marks.length>=prefs.goal){marks.length=prefs.goal;finish();} else renderAll();};
+$("lapLen").oninput=e=>{prefs.len=parseFloat(e.target.value)||0;savePrefs();renderLaps();renderLog();};
+$("sens").oninput=e=>{prefs.sens=+e.target.value;$("sensV").textContent=prefs.sens;savePrefs();};
+$("gap").onchange=e=>{prefs.gap=Math.max(.3,parseFloat(e.target.value)||1.5);e.target.value=prefs.gap;savePrefs();};
+$("beep").onchange=e=>{prefs.beep=e.target.checked;savePrefs();};
+$("wake").onchange=e=>{prefs.wake=e.target.checked;savePrefs();if(!prefs.wake)wakeOff();};
+
+/* ---------- log ---------- */
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function store(a){try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}}
+let hist=load();
+function renderLog(){
+  const ul=$("log"); ul.innerHTML=""; $("logEmpty").hidden=hist.length>0;
+  const groups={}; hist.forEach((r,i)=>{(groups[r.laps.length]=groups[r.laps.length]||[]).push({...r,idx:i});});
+  Object.keys(groups).map(Number).sort((a,b)=>b-a).forEach(n=>{
+    const h=document.createElement("li"); const gl=document.createElement("span"); gl.className="grp"; gl.textContent=n+" LAPS"; h.append(gl); ul.append(h);
+    groups[n].sort((a,b)=>a.total-b.total).forEach((r,k)=>{
+      const li=document.createElement("li"); if(k===0)li.className="p1";
+      const rk=document.createElement("span");rk.className="rank";rk.textContent="P"+(k+1);
+      const nm=document.createElement("span");nm.className="name";nm.textContent=r.name;
+      const v=document.createElement("span");v.className="val";v.textContent=fmt(r.total);
+      const u=document.createElement("small");u.textContent="秒";v.append(u);
+      const d=document.createElement("button");d.className="del";d.type="button";d.setAttribute("aria-label",r.name+"を削除");d.textContent="×";
+      d.onclick=()=>{hist.splice(r.idx,1);store(hist);stats.saved=hist.length;saveStats();renderLog();};
+      const w=document.createElement("div");w.className="when";
+      const sp=kmh(r.total,(r.len||0)*r.laps.length);
+      w.textContent=new Date(r.at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})
+        +" · BEST "+fmt(Math.min(...r.laps))+(sp?" · "+sp.toFixed(1)+"km/h":"")+(r.src==="cam"?" · カメラ":" · 手動");
+      li.append(rk,nm,v,d,w); ul.append(li);
+    });
+  });
+}
+$("saveBtn").onclick=()=>{
+  if(phase!=="done")return;
+  const L=laps(), name=$("name").value.trim()||"走行 "+(hist.length+1);
+  hist.unshift({name,total:marks[marks.length-1]-t0,laps:L,len:prefs.len||0,src,at:Date.now()});
+  store(hist); $("name").value=""; saved=true; renderLaps(); renderLog();
+  stats.saved=hist.length; saveStats(); const fr=checkUnlocks(); if(fr.length)setTimeout(()=>celebrate(0,fr),400);
+  status("「"+name+"」を記録に保存しました。");
+};
+
+/* ---------- お姉さん ---------- */
+const LINES=[
+  "公式の3レーンコースは、1周ごとにレーンチェンジで隣のレーンに移るの。3周でちょうど全部のレーンを1回ずつ走るんだよ。",
+  "1周目だけ遅いのは、スタートの加速ぶん。2周目からのラップがマシン本来の速さだよ。",
+  "ベストラップと平均ラップの差が小さいほど、安定した走りってこと！",
+  "ラップがばらつくときは、どこかのセクションで減速してるかも。ブレーキの効きすぎをチェックしてみて。",
+  "カメラはラインの真横から撮ると、通過の瞬間がはっきり分かるよ。",
+  "ゲート線は1レーン分だけにすると、隣のマシンや手を拾いにくくなるよ。",
+  "暗い場所だとカメラのシャッターが遅くなって、マシンがブレちゃう。明るいところで測ってね。",
+  "電池は走るたびに電圧が下がるの。セッティングを比べるときは、電池の条件をそろえてね。",
+  "ジャンプのあとでタイムが落ちるなら、着地でバウンドしてるのかも。マスダンパーで抑えてみて。",
+  "コースアウトしないギリギリのセッティングが一番速いの。少しずつ攻めてみてね。",
+  "1周の距離を設定すると、平均速度がkm/hで出るよ。",
+  "完走することがいちばん大事！速さはその次だよ。",
+  "ギヤ比は5:1が標準、4:1がハイスピード、3.5:1が超速だよ。速いモーターほど低いギヤ比を使いこなせるの。",
+  "ローラーにダウンスラストをつけると、マシンがフェンスに押さえつけられて飛びにくくなるよ。",
+  "小径タイヤは加速と低重心が得意。大径タイヤは最高速が伸びるけど、コースアウトしやすくなるよ。",
+  "モーターの回転数はモーターチェッカーで測れるよ。回転数とラップを一緒に記録すると、比べやすいの！"
+];
+let lastLine=-1, talkTimer=0, deck=[];
+function lineNow(){
+  const pool=[...LINES];
+  const b3=hist.filter(r=>r.laps.length===3).sort((a,b)=>a.total-b.total)[0];
+  if(b3)pool.push("3周の自己ベストは「"+b3.name+"」の <b>"+fmt(b3.total)+" 秒</b> だよ！");
+  if(phase==="done"&&marks.length){const L=laps();pool.push("さっきのベストラップは <b>"+fmt(Math.min(...L))+" 秒</b> だったね！");}
+  if(!deck.length){deck=pool.map((_,i)=>i);for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];} if(deck[0]===lastLine)deck.push(deck.shift());}
+  const i=deck.shift(); lastLine=i; return pool[Math.min(i,pool.length-1)];
+}
+function bounce(cls){const img=document.querySelector(".bg img.on");img.classList.remove("hop","jump");void img.offsetWidth;img.classList.add(cls);}
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const box=document.createElement("div"); box.className="confetti";
+  const cols=["#ff4a1c","#ffcf33","#2f8cff","#ffffff"];
+  for(let i=0;i<60;i++){
+    const c=document.createElement("i"); c.style.left=Math.random()*100+"%"; c.style.background=cols[i%cols.length];
+    c.style.setProperty("--dx",(Math.random()*120-60)+"px"); c.style.setProperty("--rot",(Math.random()*900-450)+"deg");
+    c.style.animationDuration=(1.8+Math.random()*1.6)+"s"; c.style.animationDelay=(Math.random()*.6)+"s"; box.append(c);
+  }
+  document.body.append(box); setTimeout(()=>box.remove(),4200);
+}
+function celebrate(tot,fresh,n){
+  setPeek(true);
+  if(fresh&&fresh.length)setBg(fresh[fresh.length-1].id);
+  setTimeout(()=>bounce("jump"),fresh&&fresh.length?550:0); confetti();
+  const t=$("bestTag"); t.textContent=tot?"NEW RECORD!":"UNLOCK!"; t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  let msg=tot?"やったね！"+n+"周の自己ベスト <b>"+fmt(tot)+" 秒</b> だよ！":"";
+  if(fresh&&fresh.length)msg+=(msg?"<br>":"")+"新しい私「<b>"+fresh.map(g=>g.name).join("」「")+"</b>」がアルバムに追加されたよ♪";
+  say(msg);
+}
+function say(html){const el=$("talk");el.classList.remove("show");void el.offsetWidth;el.innerHTML=html;el.classList.add("show");clearTimeout(talkTimer);talkTimer=setTimeout(()=>el.classList.remove("show"),5000);}
+function talk(){
+  nextTalkBg(); bounce("hop");
+  const el=$("talk"), html=lineNow();
+  el.classList.remove("show"); void el.offsetWidth; el.innerHTML=html; el.classList.add("show");
+  clearTimeout(talkTimer); talkTimer=setTimeout(()=>el.classList.remove("show"),Math.max(4500,el.textContent.length*120));
+}
+function setPeek(on){
+  if(!on){$("talk").classList.remove("show");setBg(stats.bg);}
+  document.body.classList.toggle("peek",on);
+  $("peekBtn").setAttribute("aria-pressed",on);
+  $("peekTxt").textContent=on?"タイマーに戻る":"お姉さんと話す";
+}
+$("peekBtn").onclick=e=>{e.stopPropagation();setPeek(!document.body.classList.contains("peek"));};
+document.addEventListener("click",e=>{if(document.body.classList.contains("peek")&&!e.target.closest("#peekBtn,#album,#viewer,#albumBtn"))talk();});
+
+/* ---------- album & unlocks (same 34 girls as モーターチェッカー) ---------- */
+const GIRLS=[
+  {id:"g1",name:"パラソルでお出迎え",cond:"最初から",need:null},
+  {id:"g2",name:"腰に手をあてて",cond:"完走1回",need:["runs",1]},
+  {id:"g31",name:"パラソルウォーク",cond:"累計10周",need:["laps",10]},
+  {id:"g16",name:"カフェでひと息",cond:"記録を1件保存",need:["saved",1]},
+  {id:"g7",name:"空を見上げて",cond:"カメラで完走1回",need:["cam",1]},
+  {id:"g4",name:"見上げてにっこり",cond:"完走5回",need:["runs",5]},
+  {id:"g18",name:"ほおづえ",cond:"累計30周",need:["laps",30]},
+  {id:"g21",name:"街でばったり",cond:"記録を3件保存",need:["saved",3]},
+  {id:"g14",name:"ナイトステージ",cond:"自己ベスト更新1回",need:["pb",1]},
+  {id:"g22",name:"ベンチでひと休み",cond:"完走10回",need:["runs",10]},
+  {id:"g28",name:"またね！",cond:"累計50周",need:["laps",50]},
+  {id:"g11",name:"夕焼けのテラス",cond:"記録を5件保存",need:["saved",5]},
+  {id:"g8",name:"のぞきこみ",cond:"カメラで完走5回",need:["cam",5]},
+  {id:"g23",name:"ヘルメットと一緒に",cond:"完走15回",need:["runs",15]},
+  {id:"g3",name:"ピットでひと休み",cond:"累計80周",need:["laps",80]},
+  {id:"g20",name:"花のガーデン",cond:"自己ベスト更新3回",need:["pb",3]},
+  {id:"g26",name:"夕暮れのほおづえ",cond:"累計100周",need:["laps",100]},
+  {id:"g10",name:"VIPラウンジで",cond:"完走20回",need:["runs",20]},
+  {id:"g6",name:"風を受けて",cond:"カメラで完走10回",need:["cam",10]},
+  {id:"g33",name:"桜の街角",cond:"記録を10件保存",need:["saved",10]},
+  {id:"g32",name:"ピットウォーク",cond:"累計150周",need:["laps",150]},
+  {id:"g24",name:"ナイターの笑顔",cond:"完走25回",need:["runs",25]},
+  {id:"g15",name:"チェッカーフラッグ",cond:"自己ベスト更新5回",need:["pb",5]},
+  {id:"g9",name:"振り返り",cond:"カメラで完走20回",need:["cam",20]},
+  {id:"g12",name:"ナイトピット",cond:"累計200周",need:["laps",200]},
+  {id:"g30",name:"海辺の風",cond:"完走30回",need:["runs",30]},
+  {id:"g19",name:"ナイターのピット",cond:"累計300周",need:["laps",300]},
+  {id:"g34",name:"振り向きざま",cond:"記録を15件保存",need:["saved",15]},
+  {id:"g27",name:"びっくり！",cond:"完走35回",need:["runs",35]},
+  {id:"g5",name:"ウインク",cond:"自己ベスト更新10回",need:["pb",10]},
+  {id:"g25",name:"見返り",cond:"カメラで完走30回",need:["cam",30]},
+  {id:"g29",name:"大笑い",cond:"累計400周",need:["laps",400]},
+  {id:"g13",name:"ドレスアップ",cond:"完走40回",need:["runs",40]},
+  {id:"g17",name:"優勝おめでとう！",cond:"累計500周",need:["laps",500]}
+];
+function loadStats(){
+  let s={}; try{s=JSON.parse(localStorage.getItem(SKEY))||{};}catch(e){}
+  s.runs=s.runs||0; s.laps=s.laps||0; s.cam=s.cam||0; s.pb=s.pb||0; s.saved=hist.length; s.bestBy=s.bestBy||{};
+  s.unlocked=s.unlocked||["g1"]; s.seen=s.seen||["g1"]; s.bg=s.bg||"g1";
+  // girls already unlocked in モーターチェッカー show up here too
+  try{const m=JSON.parse(localStorage.getItem("m4wd-stats"))||{};(m.unlocked||[]).forEach(id=>{if(!s.unlocked.includes(id)){s.unlocked.push(id);s.seen.push(id);}});}catch(e){}
+  return s;
+}
+function saveStats(){try{localStorage.setItem(SKEY,JSON.stringify(stats));}catch(e){}}
+let stats=loadStats();
+const isOpen=g=>!g.need||stats[g.need[0]]>=g.need[1];
+function checkUnlocks(){
+  const fresh=GIRLS.filter(g=>isOpen(g)&&!stats.unlocked.includes(g.id));
+  fresh.forEach(g=>stats.unlocked.push(g.id)); saveStats(); updAlbumBtn(); return fresh;
+}
+const imgOf=id=>"../rq/"+id+".jpg";
+const unlockedList=()=>GIRLS.filter(g=>stats.unlocked.includes(g.id));
+function updAlbumBtn(){
+  const n=stats.unlocked.length;
+  $("albumCount").textContent=n+"/"+GIRLS.length; $("albumCount2").textContent=n+"/"+GIRLS.length;
+  $("albumDot").hidden=!stats.unlocked.some(id=>!stats.seen.includes(id));
+}
+let curBg="g1";
+function setBg(id){
+  if(id===curBg)return; curBg=id;
+  const on=document.querySelector(".bg img.on"), off=on.id==="bgA"?$("bgB"):$("bgA");
+  const pre=new Image(); pre.onload=()=>{off.src=pre.src;off.classList.add("on");on.classList.remove("on");}; pre.src=imgOf(id);
+}
+function nextTalkBg(){const list=unlockedList(); if(list.length<2)return; const i=list.findIndex(g=>g.id===curBg); setBg(list[(i+1)%list.length].id);}
+function renderAlbum(){
+  const grid=$("grid"); grid.innerHTML="";
+  GIRLS.forEach((g,i)=>{
+    const open=stats.unlocked.includes(g.id);
+    const t=document.createElement("button"); t.type="button"; t.className="tile"+(open?"":" locked");
+    const im=document.createElement("img"); im.src="../rq/"+g.id+"-s.jpg"; im.alt=open?g.name:""; im.loading="lazy"; t.append(im);
+    if(open){
+      const cap=document.createElement("span"); cap.className="cap";
+      const no=document.createElement("span"); no.className="no"; no.textContent="No."+(i+1);
+      const nm=document.createElement("span"); nm.textContent=g.name; cap.append(no,nm); t.append(cap);
+      if(stats.bg===g.id){const m=document.createElement("span");m.className="bgmark";m.textContent="背景";t.append(m);}
+      if(!stats.seen.includes(g.id)){const m=document.createElement("span");m.className="newmark";m.textContent="NEW";t.append(m);}
+      t.onclick=()=>openViewer(g.id);
+    }else{
+      t.disabled=true; t.setAttribute("aria-label","No."+(i+1)+" "+g.name+"（ロック中："+g.cond+"）");
+      const lk=document.createElement("span"); lk.className="lock";
+      lk.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+      const ln=document.createElement("span"); ln.className="lname";
+      const lno=document.createElement("span"); lno.className="no"; lno.textContent="No."+(i+1);
+      const lnm=document.createElement("span"); lnm.textContent=g.name; ln.append(lno,lnm);
+      const c=document.createElement("span"); c.className="cond"; c.textContent=g.cond;
+      const [k,need]=g.need, have=Math.min(stats[k],need);
+      const pb=document.createElement("span"); pb.className="pbar"; const f=document.createElement("i"); f.style.width=(have/need*100)+"%"; pb.append(f);
+      const pn=document.createElement("span"); pn.className="pnum"; pn.textContent=have+" / "+need+({runs:" 回",cam:" 回",pb:" 回",saved:" 件",laps:" 周"}[k]);
+      lk.append(ln,c,pb,pn); t.append(lk);
+    }
+    grid.append(t);
+  });
+}
+function openAlbum(){renderAlbum();$("album").hidden=false;document.body.style.overflow="hidden";}
+function closeAlbum(){$("album").hidden=true;document.body.style.overflow="";updAlbumBtn();}
+let vIdx=0;
+function openViewer(id){const list=unlockedList();vIdx=Math.max(0,list.findIndex(g=>g.id===id));showViewer();$("viewer").hidden=false;}
+function showViewer(){
+  const list=unlockedList(), g=list[vIdx];
+  $("vImg").src=imgOf(g.id); $("vImg").alt=g.name; $("vName").textContent=g.name;
+  $("vSet").textContent=stats.bg===g.id?"背景に設定中":"背景にする"; $("vSet").disabled=stats.bg===g.id;
+  if(!stats.seen.includes(g.id)){stats.seen.push(g.id);saveStats();}
+  $("vPrev").disabled=$("vNext").disabled=list.length<2;
+}
+$("vPrev").onclick=()=>{const n=unlockedList().length;vIdx=(vIdx-1+n)%n;showViewer();};
+$("vNext").onclick=()=>{const n=unlockedList().length;vIdx=(vIdx+1)%n;showViewer();};
+$("vSet").onclick=()=>{const g=unlockedList()[vIdx];stats.bg=g.id;saveStats();setBg(g.id);showViewer();};
+$("vClose").onclick=()=>{$("viewer").hidden=true;renderAlbum();};
+$("albumBtn").onclick=e=>{e.stopPropagation();openAlbum();};
+$("albumClose").onclick=closeAlbum;
+(()=>{let x0=null;const v=$("viewer");
+  v.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;},{passive:true});
+  v.addEventListener("touchend",e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;
+    if(Math.abs(dx)>50&&unlockedList().length>1)(dx<0?$("vNext"):$("vPrev")).click();},{passive:true});
+})();
+
+/* ---------- boot ---------- */
+saveStats(); checkUnlocks(); updAlbumBtn(); if(stats.bg!=="g1")setBg(stats.bg);
+renderLog(); resetRace();
+})();
+</script>
+</body></html>
